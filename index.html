@@ -1,0 +1,2825 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plánovač výroby</title>
+<style>
+:root{
+  --bg:#eef1f5; --line:#d5dbe3; --line2:#e3e7ed; --text:#1d2733; --muted:#5f6b7a;
+  --accent:#1f5fbf; --accent-soft:rgba(31,95,191,.16); --top:#1e2a38; --bad:#b42318;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{font:13px/1.35 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;color:var(--text);background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.muted{color:var(--muted)}
+
+/* top bar */
+.topbar{display:flex;align-items:center;background:var(--top);color:#fff;height:44px;padding:0 12px;gap:14px;flex:none}
+.brand{font-weight:700;letter-spacing:.03em;padding-right:16px;border-right:1px solid #34475d;white-space:nowrap}
+.modnav{display:flex;align-self:stretch}
+.modnav button{background:none;border:0;border-bottom:3px solid transparent;color:#aebdd0;padding:0 18px;font-weight:600;white-space:nowrap}
+.modnav button:hover{color:#fff}
+.modnav button.active{color:#fff;border-bottom-color:#5b9bff;background:#27384c}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tbtn{background:#2b3c51;color:#e5ecf4;border:1px solid #3d536d;border-radius:3px;padding:5px 10px;white-space:nowrap}
+.tbtn:hover{background:#34495f}
+#saveState{font-size:12px;color:#9fb0c4;margin-right:4px;white-space:nowrap}
+#saveState.err{color:#ff8a80;font-weight:700}
+#clock{font-size:12px;color:#c9d4e2;white-space:nowrap;padding-right:10px;border-right:1px solid #34475d;margin-right:4px;font-variant-numeric:tabular-nums}
+
+/* sheet tabs */
+.sheetbar{display:flex;align-items:flex-end;gap:2px;padding:6px 12px 0;background:#dde3ea;border-bottom:1px solid var(--line);flex:none;overflow-x:auto}
+.stab{display:flex;align-items:center;gap:6px;padding:5px 8px 5px 12px;background:#eef1f5;border:1px solid var(--line);border-bottom:0;border-radius:4px 4px 0 0;color:var(--muted);cursor:pointer;white-space:nowrap;user-select:none}
+.stab:hover{background:#f6f8fa}
+.stab.active{background:#fff;color:var(--text);font-weight:600;position:relative;top:1px;padding-bottom:6px}
+.stab .cnt{font-size:11px;background:#dfe5ec;color:var(--muted);border-radius:8px;padding:0 6px;font-weight:600}
+.stab .calb{font-size:10px;background:#2d6a4f;color:#fff;border-radius:2px;padding:0 4px;font-weight:700}
+.stab .x{border:0;background:none;color:#8a96a5;padding:0 3px;font-size:15px;line-height:1}
+.stab .x:hover{color:var(--bad)}
+.stab input{width:170px;padding:1px 4px;border:1px solid var(--accent)}
+.addtab{border:1px dashed #9fb0c4;background:transparent;color:var(--muted);border-radius:4px 4px 0 0;padding:5px 12px;margin-left:4px;border-bottom:0;white-space:nowrap}
+.addtab:hover{background:#f6f8fa;color:var(--text)}
+
+/* toolbar */
+.toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px 12px;background:#fff;border-bottom:1px solid var(--line);flex:none}
+.btn{background:#f5f7f9;border:1px solid #c3cbd5;border-radius:3px;padding:4px 10px;white-space:nowrap}
+.btn:hover:not(:disabled){background:#e7ecf1}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover:not(:disabled){background:#1a52a6}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:2px 8px;font-size:12px}
+.btn:disabled{opacity:.4;cursor:default}
+.sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+.spacer{flex:1}
+
+/* panel */
+.panel{background:#fff;border-bottom:1px solid var(--line);padding:8px 12px;flex:none}
+.cap{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+.kpi{display:flex;flex-direction:column;justify-content:center;gap:2px;border:1px solid var(--line);border-radius:3px;padding:5px 12px;min-width:150px;background:#fafbfc}
+.kpi .l{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.04em;font-weight:600}
+.kpi .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi .v.sm{font-size:15px}
+.kpi .s{font-size:12px;color:var(--muted);white-space:nowrap}
+.kpi input{font-size:17px;font-weight:700;width:90px;padding:1px 5px;border:1px solid #b9c3cf;border-radius:2px;background:#fff}
+.kpi select{padding:3px 4px;border:1px solid #b9c3cf;border-radius:2px;background:#fff;font-weight:600}
+.kpi.main{border-left:4px solid var(--accent)}
+.kpi.filt{border-style:dashed}
+.kpi.warn{border-left:4px solid var(--bad);background:#fff4f2}
+.kpi.warn .v{color:var(--bad)}
+.kpi.calk{border-left:4px solid #2d6a4f}
+.shiftrow{display:flex;align-items:center;gap:10px;margin-top:8px}
+.shifts{display:flex;flex-wrap:wrap;gap:3px;flex:1;max-height:84px;overflow:auto}
+.sb{position:relative;width:72px;height:22px;border:1px solid #9fb0c4;background:#fff;font-size:11px;overflow:hidden}
+.sb .f{position:absolute;left:0;top:0;bottom:0;background:#3a6cc0}
+.sb.partial .f{background:#e3a72f}
+.sb .t{position:relative;display:flex;justify-content:space-between;padding:0 4px;line-height:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.sb.full .t{color:#fff}
+.sb2{position:relative;width:88px;height:34px;border:1px solid #b9c3cf;border-left:4px solid var(--c);background:#fff;font-size:11px;overflow:hidden}
+.sb2 .f{position:absolute;left:0;top:0;bottom:0;background:var(--c);opacity:.28}
+.sb2 .t{position:relative;padding:1px 5px;line-height:15px;font-variant-numeric:tabular-nums}
+.sb2 .t b{display:block}
+.sb2.cur{outline:2px solid var(--text);outline-offset:-1px}
+.daygap{width:6px}
+.legend{font-size:11px;color:var(--muted);white-space:nowrap}
+.legend i{display:inline-block;width:10px;height:10px;vertical-align:-1px;margin:0 3px 0 8px}
+
+/* grid */
+.gridwrap{flex:1;overflow:auto;background:#fff;position:relative;scroll-padding-top:62px;scroll-padding-left:46px}
+table.grid{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed}
+.grid th,.grid td{border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:0 6px;height:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grid thead th{position:sticky;top:0;z-index:3;background:#eef2f6;border-bottom:2px solid #b4bfcc;border-right-color:#d0d7e0;vertical-align:top;padding:5px 6px 6px;font-weight:600;text-align:left;height:auto}
+.grid thead th.corner{cursor:pointer;background:#e2e8ef}
+.grid thead th.corner:hover{background:#d5dde7}
+.hwrap{display:flex;align-items:center;gap:4px}
+.hl{flex:1;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:1px 0}
+.hl:hover{color:var(--accent)}
+.th-num .hl{text-align:right}
+.sortbtn{border:1px solid transparent;border-radius:2px;background:none;color:#8a96a5;padding:0 4px;font-size:11px;line-height:16px}
+.sortbtn:hover{border-color:#b9c3cf;background:#fff}
+.sortbtn.on{color:#fff;background:var(--accent)}
+.fin{display:block;width:100%;margin-top:5px;font-weight:400;padding:2px 5px;border:1px solid #c3cbd5;border-radius:2px;background:#fff;height:24px}
+.fin:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.fin.on{border-color:var(--accent);background:#e9f1ff;font-weight:600}
+.grid tbody{user-select:none}
+.grid th.rn{background:#f3f5f8;color:#7a8696;font-weight:400;font-size:11px;text-align:right;padding-right:6px;cursor:pointer;border-right:1px solid #cfd6df}
+.grid th.rn:hover{background:#e3e9f0}
+.grid th.rn.rsel{background:#d3e1f6;color:var(--text);font-weight:600}
+.grid td{cursor:cell;background-clip:padding-box}
+.grid td.num{text-align:right;font-variant-numeric:tabular-nums}
+.grid td.c-calc{background-color:#f6f8fa;color:#2c3a4d}
+.grid td.c-calc.num{font-weight:600}
+.grid td.c-calc.bad{color:var(--bad);font-weight:700}
+.grid tr.ghost th.rn{color:#b9c1cc}
+.grid td.sel{background-image:linear-gradient(var(--accent-soft),var(--accent-soft))}
+.grid td.act{box-shadow:inset 0 0 0 2px var(--accent)}
+.grid td.invalid{color:var(--bad);text-decoration:underline dotted}
+.grid td.editing{padding:0;overflow:visible;background-image:none}
+.cell-input{display:block;width:100%;height:25px;border:0;outline:2px solid var(--accent);outline-offset:-2px;padding:0 6px;background:#fff;font-variant-numeric:tabular-nums}
+.grid td.num .cell-input{text-align:right}
+
+/* status bar */
+.statusbar{display:flex;gap:18px;align-items:center;height:26px;padding:0 12px;background:#e7ebf0;border-top:1px solid var(--line);font-size:12px;flex:none;white-space:nowrap;overflow:hidden}
+.statusbar .muted{font-size:11.5px}
+
+/* misc */
+#sink{position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;border:0;padding:0;resize:none;pointer-events:none}
+#toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);background:#1e2a38;color:#fff;padding:8px 16px;border-radius:3px;z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:80vw}
+.modal{position:fixed;inset:0;background:rgba(20,30,45,.4);display:flex;align-items:flex-start;justify-content:center;z-index:40;padding-top:6vh}
+.modal.wide{padding-top:2vh}
+.mbox{background:#fff;width:min(760px,94vw);max-height:86vh;display:flex;flex-direction:column;border-radius:4px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.modal.wide .mbox{width:min(1500px,97vw);max-height:95vh}
+.mhead{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line);font-weight:700;font-size:14px;background:#f3f5f8}
+.mhead .x{border:0;background:none;font-size:20px;line-height:1;color:var(--muted)}
+.mbody{padding:12px 14px;overflow:auto}
+.mbody textarea{width:100%;font-family:Consolas,"Courier New",monospace;font-size:12px;border:1px solid #c3cbd5;padding:6px;white-space:pre;tab-size:12}
+.mfoot{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--line)}
+.formrow{display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.formrow select,.formrow input[type=number],.formrow input[type=date]{padding:2px 4px;border:1px solid #c3cbd5;border-radius:2px}
+.help h3,.sect h3{margin:14px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.help h3:first-child,.sect h3:first-child{margin-top:0}
+.sect h3 .n{display:inline-block;background:var(--top);color:#fff;border-radius:50%;width:18px;height:18px;text-align:center;line-height:18px;margin-right:6px;font-size:11px}
+.sect h3 span.muted{text-transform:none;letter-spacing:0;font-weight:400}
+.sect{border:1px solid var(--line);border-radius:4px;padding:10px 12px;margin-bottom:10px;overflow-x:auto;min-width:0}
+.help table{border-collapse:collapse;width:100%}
+.help td{border-bottom:1px solid var(--line2);padding:4px 6px;vertical-align:top}
+.help td:first-child{white-space:nowrap;width:1%;font-weight:600}
+kbd{display:inline-block;border:1px solid #b9c3cf;border-bottom-width:2px;border-radius:3px;padding:0 4px;font:11px Consolas,monospace;background:#f6f8fa}
+code{background:#eef1f5;padding:0 3px;border-radius:2px}
+
+/* rozpis směn */
+.calhead{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:8px 12px;border-radius:4px;margin-bottom:10px;background:#f1f6f3;border:1px solid #bcd9c8}
+.calhead.offm{background:#f6f6f6;border-color:var(--line)}
+.calhead label{font-size:14px;display:flex;align-items:center;gap:8px;cursor:pointer}
+.calhead input[type=checkbox]{width:18px;height:18px}
+.ctypes{border-collapse:collapse}
+.ctypes th{font-size:11px;text-transform:uppercase;color:var(--muted);text-align:left;padding:3px 6px;font-weight:600}
+.ctypes td{padding:3px 6px;border-top:1px solid var(--line2);white-space:nowrap}
+.ctypes input{padding:3px 5px;border:1px solid #c3cbd5;border-radius:2px;background:#fff}
+.ctypes input[type=color]{width:34px;height:26px;padding:1px;cursor:pointer}
+.ctypes .net{font-weight:700;font-variant-numeric:tabular-nums}
+.ntag{display:inline-block;margin-left:8px;font-size:11px;background:#2d2a55;color:#fff;padding:1px 6px;border-radius:2px;font-weight:600}
+.cweek{border-collapse:collapse}
+.cweek th,.cweek td{padding:3px;text-align:center;border:1px solid var(--line2)}
+.cweek thead th{font-size:12px;cursor:pointer;padding:4px 8px;background:#f3f5f8}
+.cweek thead th:hover{background:#e3e9f0}
+.cweek tbody th{text-align:left;padding:4px 10px;white-space:nowrap;font-weight:600}
+.cweek tbody th small{font-weight:400;color:var(--muted);margin-left:6px}
+.cweek .sum td,.cweek .sum th{font-size:11px;color:var(--muted);font-weight:600}
+.wcell{width:50px;height:28px;border:1px dashed #b9c3cf;background:#fff;color:#b9c3cf;font-weight:700;border-radius:3px}
+.wcell.on{background:var(--c);border:1px solid var(--c);color:#fff}
+.dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.calnav{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.calnav b{margin:0 8px;font-size:14px}
+.cmonth{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cdow{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;padding:0 4px}
+.cday{border:1px solid var(--line);border-radius:3px;padding:4px 5px;min-height:74px;background:#fff;display:flex;flex-direction:column;gap:4px;min-width:0}
+.cday.we{background:#f7f8fa}
+.cday.hol{background:#fff6e5}
+.cday.past{opacity:.45}
+.cday.today{border:2px solid var(--accent)}
+.cday.ovr{box-shadow:inset 3px 0 0 #e3a72f}
+.cdh{display:flex;align-items:center;gap:4px;font-size:12px;min-width:0}
+.cdh .hn{font-size:10px;color:#9a5b00;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.cdh .sp{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:3px}
+.sc{border:1px dashed #b9c3cf;background:#fff;color:#a9b3bf;border-radius:3px;padding:1px 6px;font-size:11px;font-weight:700;min-width:30px}
+.sc.on{background:var(--c);border:1px solid var(--c);color:#fff}
+.sc.now{outline:2px solid #111;outline-offset:1px}
+.cfoot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted)}
+.mini{border:0;background:none;color:var(--accent);font-size:11px;padding:0 2px;cursor:pointer}
+.mini:hover{text-decoration:underline}
+.calcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(620px,1fr));gap:10px;align-items:start;margin-bottom:10px}
+.calcols .sect{margin-bottom:0}
+.ctypes input.tm{width:62px;text-align:center;font-variant-numeric:tabular-nums}
+
+/* import */
+.impsrc{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.drop{border:2px dashed #b9c3cf;border-radius:4px;padding:14px;text-align:center;background:#fafbfc;display:flex;flex-direction:column;gap:8px;justify-content:center;align-items:center}
+.drop.over{border-color:var(--accent);background:#eef4ff}
+.impwrap{overflow:auto;max-height:44vh;border:1px solid var(--line);margin-top:6px}
+.imptbl{border-collapse:separate;border-spacing:0;font-size:12px}
+.imptbl th,.imptbl td{border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:3px 6px;white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis}
+.imptbl thead th{position:sticky;top:0;background:#eef2f6;z-index:1;vertical-align:top;text-align:left;min-width:120px}
+.imptbl thead th.rn{min-width:0}
+.imptbl thead th select{width:100%;padding:2px;margin-bottom:3px;border:1px solid #b9c3cf;border-radius:2px;background:#fff;font-weight:600}
+.imptbl thead th .hname{font-weight:700;overflow:hidden;text-overflow:ellipsis}
+.imptbl th.mapped,.imptbl td.mapped{background:#e3eefc}
+.imptbl thead th.mapped{background:#cfe0f8}
+.imptbl td.rn,.imptbl th.rn{color:#9aa5b3;text-align:right;background:#f6f8fa}
+.imptbl tr.skip td{color:#b0b8c3;text-decoration:line-through}
+.iinfo{padding:8px 10px;border-radius:3px;background:#f3f5f8;margin-top:8px}
+.iinfo.bad{background:#fff4f2;color:var(--bad)}
+.cfm{position:fixed;inset:0;background:rgba(20,30,45,.35);display:flex;align-items:flex-start;justify-content:center;padding-top:18vh;z-index:80}
+.cbox{background:#fff;width:min(460px,92vw);border-radius:4px;box-shadow:0 10px 40px rgba(0,0,0,.35);border-top:4px solid var(--accent)}
+.cbox.danger{border-top-color:var(--bad)}
+.cmsg{padding:16px 18px;font-size:14px;line-height:1.5}
+.cbtns{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--line);background:#f6f8fa}
+.btn.dfill{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn.dfill:hover{background:#912018}
+
+/* modul 1 – materiál a expedice */
+:root{--ok-bg:#dcf2e2;--ok-rn:#bfe5ca;--ok-line:#2e7d4f;--nok-bg:#fbdede;--nok-rn:#f3c2c2;--nok-line:#c62828}
+.sum{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;gap:8px;align-items:baseline;border:1px solid var(--line);padding:4px 12px;border-radius:3px;background:#fafbfc;cursor:pointer;user-select:none}
+.chip b{font-size:16px;font-variant-numeric:tabular-nums}
+.chip.ok{border-left:4px solid var(--ok-line)}
+.chip.nok{border-left:4px solid var(--nok-line)}
+.chip.empty{border-left:4px solid #9aa5b3}
+.chip.on{outline:2px solid var(--accent);outline-offset:-1px;background:#eef4ff}
+.hint{font-size:12px;color:var(--muted);margin-left:6px}
+.grid td.c-status{text-align:center}
+.grid tr.r-ok td{background-color:var(--ok-bg)}
+.grid tr.r-nok td{background-color:var(--nok-bg)}
+.grid tr.r-ok th.rn{background:var(--ok-rn);box-shadow:inset 4px 0 0 var(--ok-line);color:#22543a}
+.grid tr.r-nok th.rn{background:var(--nok-rn);box-shadow:inset 4px 0 0 var(--nok-line);color:#7a1d1d}
+.grid td.late{color:#a11010;font-weight:700}
+.badge{display:inline-block;min-width:48px;text-align:center;padding:0 6px;border-radius:3px;font-weight:700;font-size:11.5px;line-height:18px;cursor:pointer;border:1px solid}
+.badge.ok{background:var(--ok-line);border-color:var(--ok-line);color:#fff}
+.badge.nok{background:var(--nok-line);border-color:var(--nok-line);color:#fff}
+.badge.none{background:#fff;color:#8a96a5;border-color:#b9c3cf;border-style:dashed}
+
+/* šířka sloupců */
+.rz{position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;z-index:5}
+.rz:hover{background:rgba(31,95,191,.35)}
+body.resizing,body.resizing *{cursor:col-resize!important;user-select:none!important}
+
+/* kontextové menu */
+.ctxm{position:fixed;z-index:90;background:#fff;border:1px solid #b9c3cf;box-shadow:0 6px 22px rgba(0,0,0,.22);padding:4px 0;min-width:260px;border-radius:3px}
+.ctxm button{display:flex;justify-content:space-between;align-items:center;gap:24px;width:100%;border:0;background:none;padding:5px 14px;text-align:left;white-space:nowrap}
+.ctxm button:hover:not(:disabled){background:#e3eefc}
+.ctxm button.dang{color:var(--bad);font-weight:600}
+.ctxm button:disabled{color:#b0b8c3;cursor:default}
+.ctxm kbd{font-size:10px;color:var(--muted)}
+.ctxm .csep{height:1px;background:var(--line);margin:4px 0}
+
+/* import – výběr záhlaví a řádků */
+.impsteps{margin:6px 0 4px 18px;padding:0;color:var(--muted);font-size:12.5px}
+.impsteps li{margin:2px 0}
+.impsteps b{color:var(--text)}
+.imptbl th.ck,.imptbl td.ck{width:30px;min-width:30px;text-align:center;padding:2px}
+.imptbl td.hpick{cursor:pointer}
+.imptbl td.hpick:hover{background:#ffe08a;color:#000;font-weight:700}
+.imptbl tr.above td{color:#b5bcc6;background:#f7f7f7}
+.imptbl tr.above td.mapped{background:#f0f2f5}
+.imptbl tr.hdrrow td{background:#fff1c2!important;font-weight:700;color:#5a4300}
+.imptbl tr.off td:not(.ck):not(.rn){color:#b0b8c3;text-decoration:line-through;background:#fafafa}
+.htag{font-size:10px;background:#e3a72f;color:#fff;padding:1px 4px;border-radius:2px;font-weight:700}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">PLÁNOVAČ VÝROBY</div>
+  <nav class="modnav" id="modnav">
+    <button data-mod="m1">Materiál a expedice</button>
+    <button data-mod="m2">Plán výroby na stanovišti</button>
+  </nav>
+  <div class="top-right">
+    <span id="clock"></span>
+    <span id="saveState">Data se ukládají do prohlížeče</span>
+    <button class="tbtn" id="btnExport" title="Stáhnout zálohu všech dat do souboru .json">Stáhnout zálohu</button>
+    <button class="tbtn" id="btnImport" title="Obnovit data ze souboru zálohy">Obnovit ze zálohy</button>
+    <input type="file" id="fileImport" accept=".json,application/json" hidden>
+    <button class="tbtn" id="btnHelp" title="Nápověda (F1)">Nápověda</button>
+  </div>
+</header>
+<div class="sheetbar" id="sheetbar"></div>
+<div class="toolbar" id="toolbar"></div>
+<div class="panel" id="panel"></div>
+<div class="gridwrap" id="gridwrap"><table class="grid" id="grid"></table></div>
+<div class="statusbar" id="statusbar"></div>
+<textarea id="sink" aria-hidden="true" tabindex="-1"></textarea>
+<div id="toast" hidden></div>
+<div class="modal" id="modal" hidden></div>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   KONFIGURACE
+   ===================================================================== */
+const KEYS = { m1: 'planovacVyroby.modul1', m2: 'planovacVyroby.modul2', ui: 'planovacVyroby.ui' };
+const KEY_IMPORT = { m1: 'planovacVyroby.importMapa.m1', m2: 'planovacVyroby.importMapa' };
+const DEFAULT_SHIFT = 450;
+const PALETTE = ['#2f6fca', '#d9822b', '#4a3d8f', '#2d8a57', '#b23a48', '#0f8b8d', '#8a6d1f', '#6b7280'];
+const DOW = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
+const collator = new Intl.Collator('cs', { numeric: true, sensitivity: 'base' });
+const FILTER_HELP = 'Obsahuje text · více hodnot: a;b · neobsahuje: !text · přesně: =text · prázdné: = · neprázdné: != · čísla a data: >10, <=5, >15.11.2026';
+
+/* ---- Modul 1: Materiál a expedice ---- */
+const M1_COLS = [
+  { key: 'artikl', label: 'Artikl', type: 'text', w: 20 },
+  { key: 'pocet',  label: 'Požadovaný počet ks', type: 'num', w: 13 },
+  { key: 'cas',    label: 'Čas výroby', type: 'text', w: 13, hint: 'informativní' },
+  { key: 'mat',    label: 'Materiál', type: 'status', w: 11 },
+  { key: 'sklad',  label: 'Sklad', type: 'num', w: 13, hint: 'aktuální zásoba' },
+  { key: 'termin', label: 'Termín odeslání sestavy', type: 'date', w: 17 },
+];
+const M1_IMPORT_FIELDS = [
+  { key: 'artikl', label: 'Artikl' },
+  { key: 'pocet', label: 'Požadovaný počet ks' },
+  { key: 'cas', label: 'Čas výroby' },
+  { key: 'mat', label: 'Materiál OK / NOK' },
+  { key: 'sklad', label: 'Sklad' },
+  { key: 'termin', label: 'Termín odeslání' },
+];
+function m1Guess(h) {
+  const s = headerKey(h);
+  if (!s) return '';
+  if (/stav|status|ok ?\/ ?nok|dostupnost|k dispozici|chybi/.test(s)) return 'mat';
+  if (/termin|datum|expedic|odesl|dodan|date|due|liefer|versand/.test(s)) return 'termin';
+  if (/sklad|zasob|stock|lager|dispon/.test(s)) return 'sklad';
+  if (/^cas|cas vyrob|doba|time|zeit/.test(s)) return 'cas';
+  if (/pozad|pocet|mnozstv|\bks\b|kusy|qty|quantity|menge|potreb|bedarf/.test(s)) return 'pocet';
+  if (/artik|materi|^mat\b|polozk|vyrobek|cislo dilu|part|item|sachnummer/.test(s)) return 'artikl';
+  return '';
+}
+
+/* ---- Modul 2: Plán výroby ---- */
+const COLS = [
+  { key: 'zakazka',  label: 'Číslo zakázky', type: 'text', w: 13 },
+  { key: 'artikl',   label: 'Artikl', type: 'text', w: 15 },
+  { key: 'ks',       label: 'Počet ks', type: 'num', w: 8 },
+  { key: 'priprava', label: 'Příprava stroje [min]', type: 'num', w: 11, hint: 'jednou na zakázku' },
+  { key: 'casKs',    label: 'Čas výroby / 1 ks [min]', type: 'num', w: 11 },
+  { key: 'celkem',   label: 'Celkový čas [min]', type: 'calc', w: 10, hint: 'příprava + ks × čas/ks (automaticky)',
+    calc: row => orderTotal(row) },
+  { key: 'smena',    label: 'Směna', type: 'calc', text: true, global: true, sortable: false, w: 15,
+    hint: 'do které směny zakázka padne podle pořadí řádků v listu (automaticky)',
+    calc: (row, cx) => { const p = cx.plan && cx.plan.get(row.id); return p ? p.label : ''; },
+    bad: (row, cx) => { const p = cx.plan && cx.plan.get(row.id); return !!(p && p.bad); } },
+  { key: 'konec',    label: 'Konec (odhad)', type: 'calc', text: true, global: true, sortable: false, calOnly: true, w: 11,
+    hint: 'odhad dokončení podle rozpisu směn',
+    calc: (row, cx) => { const p = cx.plan && cx.plan.get(row.id); return p ? (p.endLabel || '') : ''; } },
+];
+const IMPORT_FIELDS = [
+  { key: 'zakazka', label: 'Číslo zakázky' },
+  { key: 'artikl', label: 'Artikl' },
+  { key: 'ks', label: 'Počet ks' },
+  { key: 'priprava', label: 'Příprava stroje', time: true },
+  { key: 'casKs', label: 'Čas / 1 ks', time: true },
+];
+const UNITS = { min: { label: 'minuty', f: 1 }, s: { label: 'sekundy', f: 1 / 60 }, h: { label: 'hodiny', f: 60 }, d: { label: 'Excel čas (h:mm)', f: 1440 } };
+
+/* =====================================================================
+   POMOCNÉ FUNKCE
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const isNum = v => typeof v === 'number' && isFinite(v);
+const round3 = n => Math.round(n * 1000) / 1000;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const normText = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const fmtNum = n => n.toLocaleString('cs-CZ', { maximumFractionDigits: 3 });
+const copyNum = n => String(Number(n.toFixed(6))).replace('.', ',');
+const pad2 = n => String(n).padStart(2, '0');
+
+function parseNum(input) {
+  if (isNum(input)) return input;
+  let s = String(input ?? '').trim().replace(/[\s  ']/g, '');
+  if (!s) return NaN;
+  let neg = false;
+  if (s.endsWith('-')) { neg = true; s = s.slice(0, -1); }
+  if (s.startsWith('-')) { neg = !neg; s = s.slice(1); } else if (s.startsWith('+')) s = s.slice(1);
+  const hasC = s.includes(','), hasD = s.includes('.');
+  if (hasC && hasD) {
+    const dec = s.lastIndexOf(',') > s.lastIndexOf('.') ? ',' : '.';
+    s = s.split(dec === ',' ? '.' : ',').join('').replace(dec, '.');
+  } else if (hasC) {
+    s = s.split(',').length > 2 ? s.split(',').join('') : s.replace(',', '.');
+  } else if (hasD && s.split('.').length > 2) {
+    s = s.split('.').join('');
+  }
+  if (!/^(\d+\.?\d*|\.\d+)$/.test(s)) return NaN;
+  const n = parseFloat(s);
+  return neg ? -n : n;
+}
+function numVal(v) {
+  if (isNum(v)) return v;
+  if (v == null || v === '') return null;
+  return parseNum(v);
+}
+function fmtHM(min) {
+  const t = Math.max(0, Math.round(min)), h = Math.floor(t / 60), m = t % 60;
+  return `${h} h ${pad2(m)} min`;
+}
+function fmtSpan(min) {
+  const t = Math.max(0, Math.round(min)), d = Math.floor(t / 1440), h = Math.floor((t % 1440) / 60), m = t % 60;
+  if (d) return `${d} d ${h} h`;
+  if (h) return `${h} h ${pad2(m)} min`;
+  return `${m} min`;
+}
+function plural(n, one, few, many) {
+  if (!Number.isInteger(n)) return few;
+  if (n === 1) return one;
+  if (n >= 2 && n <= 4) return few;
+  return many;
+}
+function orderTotal(row) {
+  const p = numVal(row.priprava), k = numVal(row.ks), t = numVal(row.casKs);
+  if (p == null && k == null && t == null) return '';
+  return round3((isNum(p) ? p : 0) + (isNum(k) ? k : 0) * (isNum(t) ? t : 0));
+}
+
+/** Datum na formát DD.MM.RRRR (pokud jde o datum), jinak text beze změny */
+function normDate(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  let m, d, mo, y;
+  if ((m = s.match(/^(\d{1,2})\s*[./]\s*(\d{1,2})\s*[./]?\s*(\d{2,4})?\.?$/))) {
+    d = +m[1]; mo = +m[2]; y = m[3] ? +m[3] : new Date().getFullYear();
+    if (y < 100) y += 2000;
+  } else if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/))) {
+    y = +m[1]; mo = +m[2]; d = +m[3];
+  } else return s;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 1900 || y > 2200) return s;
+  return `${String(d).padStart(2, '0')}.${String(mo).padStart(2, '0')}.${y}`;
+}
+function parseDate(s) {
+  const m = String(s ?? '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  return m ? new Date(+m[3], +m[2] - 1, +m[1]).getTime() : null;
+}
+/** Excelové sériové číslo data (např. 46341) -> DD.MM.RRRR */
+function excelSerialDate(n) {
+  const d = new Date(Math.round((n - 25569) * 86400000));
+  return `${pad2(d.getUTCDate())}.${pad2(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
+}
+function parseStatus(v) {
+  const s = normText(String(v ?? '').trim());
+  if (!s) return '';
+  if (['ok', 'ano', 'a', 'y', 'yes', '1', 'true', 'je'].includes(s)) return 'OK';
+  if (s.startsWith('nok') || ['ne', 'n', 'no', '0', 'false', 'chybi', 'neni', 'x'].includes(s)) return 'NOK';
+  return '';
+}
+function startOfToday() { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
+
+/** Parser oddělených dat (TSV / CSV) včetně buněk v uvozovkách */
+function parseDelimited(text, d = '\t') {
+  if (text == null) return [];
+  text = String(text).replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+  if (text.endsWith('\n')) text = text.slice(0, -1);
+  if (text === '') return [];
+  const simple = () => text.split('\n').map(l => l.split(d));
+  if (!text.includes('"')) return simple();
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) {
+      if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += ch;
+      continue;
+    }
+    if (ch === '"' && cell === '') { q = true; continue; }
+    if (ch === d) { row.push(cell); cell = ''; continue; }
+    if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; continue; }
+    cell += ch;
+  }
+  if (q) return simple();
+  row.push(cell); rows.push(row);
+  return rows;
+}
+const parseTSV = t => parseDelimited(t, '\t');
+function tsvCell(s) { return /[\t\n\r"]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+
+/* ---------- čas a kalendář ---------- */
+function hmToMin(s) { const m = /^(\d{1,2}):(\d{2})/.exec(s || ''); return m ? (+m[1]) * 60 + (+m[2]) : 0; }
+function typeDur(t) { let d = hmToMin(t.end) - hmToMin(t.start); if (d <= 0) d += 1440; return d; }
+function typeNet(t) { return Math.max(0, typeDur(t) - (Number(t.pause) || 0)); }
+function isNight(t) { return hmToMin(t.end) <= hmToMin(t.start); }
+function parseHM(s) {
+  s = String(s || '').trim().replace(/[.,h ]/g, ':').replace(/:+/g, ':').replace(/:$/, '');
+  let m = s.match(/^(\d{1,2})(?::(\d{1,2}))?$/) || s.match(/^(\d{1,2})(\d{2})$/);
+  if (!m) return null;
+  const h = +m[1], mi = m[2] ? +m[2] : 0;
+  if (h > 24 || mi > 59 || (h === 24 && mi > 0)) return null;
+  return `${pad2(h % 24)}:${pad2(mi)}`;
+}
+function hmShort(s) { const m = hmToMin(s); return `${Math.floor(m / 60)}:${pad2(m % 60)}`; }
+function dayKey(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function keyToDate(k) { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); }
+function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+function mondayOf(d) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); return addDays(x, -((x.getDay() + 6) % 7)); }
+function fmtD(d) { return `${d.getDate()}.${d.getMonth() + 1}.`; }
+function fmtDT(ts) { const d = new Date(ts); return `${DOW[d.getDay()]} ${fmtD(d)} ${d.getHours()}:${pad2(d.getMinutes())}`; }
+
+function easterSunday(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25),
+    g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4,
+    l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451),
+    month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(y, month - 1, day);
+}
+const FIXED_HOL = { '1-1': 'Nový rok', '5-1': 'Svátek práce', '5-8': 'Den vítězství', '7-5': 'Cyril a Metoděj', '7-6': 'Jan Hus',
+  '9-28': 'Den české státnosti', '10-28': 'Vznik Československa', '11-17': 'Den boje za svobodu a demokracii',
+  '12-24': 'Štědrý den', '12-25': '1. svátek vánoční', '12-26': '2. svátek vánoční' };
+const holCache = new Map();
+function holidayName(d) {
+  const y = d.getFullYear();
+  if (!holCache.has(y)) {
+    const m = new Map(), e = easterSunday(y);
+    m.set(dayKey(addDays(e, -2)), 'Velký pátek');
+    m.set(dayKey(addDays(e, 1)), 'Velikonoční pondělí');
+    holCache.set(y, m);
+  }
+  return FIXED_HOL[`${d.getMonth() + 1}-${d.getDate()}`] || holCache.get(y).get(dayKey(d)) || '';
+}
+
+/* =====================================================================
+   DATA A UKLÁDÁNÍ
+   ===================================================================== */
+function newRow() {
+  const r = { id: uid() };
+  cols().forEach(c => { if (c.type !== 'calc') r[c.key] = ''; });
+  return r;
+}
+function newSheet(name, k = ui.module) {
+  const s = { id: uid(), name, rows: [], sort: null, filters: {} };
+  if (k === 'm2') s.shift = DEFAULT_SHIFT;
+  return s;
+}
+function newType(name, short, start, end, pause, color) { return { id: uid(), name, short, start, end, pause, color }; }
+function presetTypes(kind) {
+  if (kind === '12') return [newType('Denní', 'D', '06:00', '18:00', 45, PALETTE[0]), newType('Noční', 'N', '18:00', '06:00', 45, PALETTE[2])];
+  const t = [newType('Ranní', 'R', '06:00', '14:00', 30, PALETTE[0]), newType('Odpolední', 'O', '14:00', '22:00', 30, PALETTE[1])];
+  if (kind === '3') t.push(newType('Noční', 'N', '22:00', '06:00', 30, PALETTE[2]));
+  return t;
+}
+function defaultCal() {
+  const types = presetTypes('3');
+  const work = [types[0].id, types[1].id];
+  return { enabled: false, types, pattern: { 0: [], 1: work.slice(), 2: work.slice(), 3: work.slice(), 4: work.slice(), 5: work.slice(), 6: [] },
+    overrides: {}, skipHolidays: true, planFrom: 'now' };
+}
+function normalizeCal(c) {
+  if (!c || typeof c !== 'object') return null;
+  const out = Object.assign(defaultCal(), c);
+  out.types = Array.isArray(c.types) ? c.types.filter(t => t && t.id).map((t, i) => Object.assign({ name: 'Směna', short: '', start: '06:00', end: '14:00', pause: 0, color: PALETTE[i % PALETTE.length] }, t)) : [];
+  const ids = new Set(out.types.map(t => t.id));
+  const pat = {};
+  for (let d = 0; d < 7; d++) pat[d] = Array.isArray(c.pattern && c.pattern[d]) ? c.pattern[d].filter(id => ids.has(id)) : [];
+  out.pattern = pat;
+  out.overrides = {};
+  if (c.overrides && typeof c.overrides === 'object')
+    for (const [k, v] of Object.entries(c.overrides)) if (Array.isArray(v)) out.overrides[k] = v.filter(id => ids.has(id));
+  if (!['now', 'start', 'next'].includes(out.planFrom)) out.planFrom = 'now';
+  out.enabled = !!c.enabled; out.skipHolidays = c.skipHolidays !== false;
+  return out;
+}
+function normalizeData(k, d) {
+  if (!d || typeof d !== 'object' || !Array.isArray(d.sheets)) return null;
+  const sheets = d.sheets.filter(s => s && typeof s === 'object').map(s => {
+    const out = Object.assign(newSheet('Pracoviště', k), s);
+    out.id = String(s.id || uid());
+    out.name = String(s.name || 'Pracoviště');
+    out.rows = Array.isArray(s.rows) ? s.rows.filter(r => r && typeof r === 'object').map(r => ({ ...r, id: String(r.id || uid()) })) : [];
+    out.filters = s.filters && typeof s.filters === 'object' ? s.filters : {};
+    out.sort = s.sort && s.sort.key ? { key: s.sort.key, dir: s.sort.dir === 'desc' ? 'desc' : 'asc' } : null;
+    if (k === 'm2') {
+      if (!(out.shift > 0)) out.shift = DEFAULT_SHIFT;
+      out.cal = s.cal ? normalizeCal(s.cal) : null;
+    }
+    return out;
+  });
+  if (!sheets.length) return null;
+  return { sheets, activeId: sheets.some(s => s.id === d.activeId) ? d.activeId : sheets[0].id };
+}
+function defaultData(k) { const s = newSheet('Pracoviště 1', k); return { sheets: [s], activeId: s.id }; }
+function safeParse(s) { try { return JSON.parse(s); } catch { return null; } }
+function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+
+const ui = Object.assign({ module: 'm1', widths: {} }, safeParse(lsGet(KEYS.ui)) || {});
+if (!ui.widths || typeof ui.widths !== 'object') ui.widths = {};
+if (ui.module !== 'm1' && ui.module !== 'm2') ui.module = 'm1';
+// store = data obou modulů (zcela oddělené); data = právě otevřený modul
+const store = {
+  m1: normalizeData('m1', safeParse(lsGet(KEYS.m1))) || defaultData('m1'),
+  m2: normalizeData('m2', safeParse(lsGet(KEYS.m2))) || defaultData('m2'),
+};
+let data = store[ui.module];
+function saveUI() { try { localStorage.setItem(KEYS.ui, JSON.stringify({ module: ui.module, widths: ui.widths })); } catch {} }
+
+let saveFailed = false;
+function save(k = ui.module) {
+  try {
+    localStorage.setItem(KEYS[k], JSON.stringify(store[k]));
+    const el = $('#saveState');
+    el.textContent = 'Uloženo ' + new Date().toLocaleTimeString('cs-CZ');
+    el.className = '';
+    saveFailed = false;
+  } catch (err) {
+    const el = $('#saveState');
+    el.textContent = 'CHYBA UKLÁDÁNÍ – stáhněte zálohu!';
+    el.className = 'err';
+    if (!saveFailed) showAlert('Data se nepodařilo uložit do prohlížeče.\n\nMožné příčiny: plné úložiště nebo anonymní (inkognito) režim.\nStáhněte si prosím hned zálohu tlačítkem „Stáhnout zálohu“.\n\n' + err);
+    saveFailed = true;
+  }
+}
+
+/* =====================================================================
+   STAV MŘÍŽKY
+   ===================================================================== */
+let viewIds = [];
+let rowMap = new Map();
+let ctx = { plan: new Map(), now: Date.now() };
+let ghost = 0;
+let sel = null;            // {ar,ac,er,ec}
+let painted = null;
+let editing = null;        // {r,c,inp,typed}
+let drag = null, pendingEdit = null;
+let trs = [], tds = [];
+const hist = new Map();
+
+const grid = $('#grid'), sink = $('#sink'), gridwrap = $('#gridwrap');
+const sheet = () => data.sheets.find(s => s.id === data.activeId) || data.sheets[0];
+const calOn = sh => ui.module === 'm2' && !!(sh && sh.cal && sh.cal.enabled);
+const cols = () => { if (ui.module === 'm1') return M1_COLS; const on = calOn(sheet()); return COLS.filter(c => !c.calOnly || on); };
+const rowClass = row => ui.module === 'm1' ? (row.mat === 'NOK' ? 'r-nok' : row.mat === 'OK' ? 'r-ok' : '') : '';
+const nRows = () => viewIds.length + ghost;
+const realRow = r => (r >= 0 && r < viewIds.length) ? rowMap.get(viewIds[r]) : null;
+const hasFilters = sh => Object.values(sh.filters || {}).some(v => v != null && String(v).trim() !== '');
+const isNumericCol = c => c.type === 'num' || (c.type === 'calc' && !c.text);
+const lastReal = () => Math.max(0, viewIds.length - 1);
+function range() {
+  return { r1: Math.min(sel.ar, sel.er), r2: Math.max(sel.ar, sel.er), c1: Math.min(sel.ac, sel.ec), c2: Math.max(sel.ac, sel.ec) };
+}
+function rawOf(col, row) { return col.type === 'calc' ? col.calc(row, ctx) : row[col.key]; }
+function coerce(col, v) {
+  const s = String(v ?? '').trim();
+  if (col.type === 'num') { if (!s) return ''; const n = parseNum(s); return isNaN(n) ? s : n; }
+  if (col.type === 'status') return parseStatus(s);
+  if (col.type === 'date') return normDate(s);
+  return s;
+}
+
+/* ---------- historie ---------- */
+function H() {
+  const k = sheet().id;
+  let h = hist.get(k);
+  if (!h) { h = { u: [], r: [] }; hist.set(k, h); }
+  return h;
+}
+function pushUndo() {
+  const h = H();
+  h.u.push(JSON.stringify(sheet().rows));
+  if (h.u.length > 100) h.u.shift();
+  h.r.length = 0;
+}
+function undo() {
+  commitIfEditing();
+  const h = H();
+  if (!h.u.length) { toast('Není co vrátit.'); return; }
+  h.r.push(JSON.stringify(sheet().rows));
+  sheet().rows = JSON.parse(h.u.pop());
+  afterStructure(); toast('Vráceno zpět.');
+}
+function redo() {
+  commitIfEditing();
+  const h = H();
+  if (!h.r.length) { toast('Není co obnovit.'); return; }
+  h.u.push(JSON.stringify(sheet().rows));
+  sheet().rows = JSON.parse(h.r.pop());
+  afterStructure(); toast('Obnoveno.');
+}
+function afterStructure() { save(); recomputeView(); renderBody(); updatePanel(); updateStatus(); }
+
+/* =====================================================================
+   PLÁNOVÁNÍ DO SMĚN
+   ===================================================================== */
+function defaultDayIds(cal, date) {
+  if (cal.skipHolidays && holidayName(date)) return [];
+  return cal.pattern[date.getDay()] || [];
+}
+function dayIds(cal, date) {
+  const ov = cal.overrides[dayKey(date)];
+  return ov !== undefined ? ov : defaultDayIds(cal, date);
+}
+function dayTypes(cal, date) {
+  const ids = dayIds(cal, date);
+  return cal.types.filter(t => ids.includes(t.id)).sort((a, b) => hmToMin(a.start) - hmToMin(b.start));
+}
+function shiftBounds(t, day) {
+  const s = hmToMin(t.start), e = hmToMin(t.end);
+  const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(s / 60), s % 60).getTime();
+  let end = new Date(day.getFullYear(), day.getMonth(), day.getDate() + (e <= s ? 1 : 0), Math.floor(e / 60), e % 60).getTime();
+  if (end <= start) end = start + 86400000;
+  return { start, end };
+}
+/** Generátor směn od daného okamžiku. mode: now = jen zbytek aktuální směny, start = celá aktuální, next = až od příští */
+function* slotsFrom(cal, fromTs, mode) {
+  const d0 = addDays(new Date(fromTs), -1);
+  for (let i = 0; i < 1100; i++) {
+    const day = addDays(new Date(d0.getFullYear(), d0.getMonth(), d0.getDate()), i);
+    for (const t of dayTypes(cal, day)) {
+      const { start, end } = shiftBounds(t, day);
+      if (end <= fromTs) continue;
+      const net = typeNet(t);
+      if (net <= 0) continue;
+      const current = start <= fromTs;
+      let cap = net, wstart = start;
+      if (current) {
+        if (mode === 'next') continue;
+        if (mode === 'now') { cap = net * (end - fromTs) / (end - start); wstart = fromTs; }
+      }
+      if (cap <= 0.01) continue;
+      yield { t, day, start, end, wstart, cap, current };
+    }
+  }
+}
+function slotLabel(s) { return `${DOW[s.day.getDay()]} ${fmtD(s.day)} ${s.t.short || s.t.name}`; }
+function slotTime(s, used) { return s.wstart + (s.cap ? used / s.cap : 0) * (s.end - s.wstart); }
+
+function planWithCalendar(sh, now) {
+  const cal = sh.cal, it = slotsFrom(cal, now, cal.planFrom);
+  const slots = [];
+  const next = () => { const n = it.next(); if (n.done) return null; const s = Object.assign({ used: 0 }, n.value); slots.push(s); return s; };
+  let cur = next();
+  const plan = new Map(); let T = 0, finish = null, unplanned = 0;
+  for (const row of sh.rows) {
+    const t = orderTotal(row);
+    if (!(t > 0)) continue;
+    T += t;
+    while (cur && cur.cap - cur.used <= 1e-6) cur = next();
+    if (!cur) { plan.set(row.id, { label: 'nevejde se do rozpisu', bad: true }); unplanned += t; continue; }
+    const first = cur;
+    let need = t;
+    while (need > 1e-9) {
+      const take = Math.min(need, cur.cap - cur.used);
+      cur.used += take; need -= take;
+      if (need > 1e-9) { const n = next(); if (!n) break; cur = n; }
+    }
+    if (need > 1e-9) { plan.set(row.id, { label: slotLabel(first) + ' → nevejde se', bad: true }); unplanned += need; continue; }
+    const endTs = slotTime(cur, cur.used);
+    plan.set(row.id, { label: first === cur ? slotLabel(first) : `${slotLabel(first)} → ${slotLabel(cur)}`, endLabel: fmtDT(endTs), endTs });
+    finish = endTs;
+  }
+  return { plan, slots: slots.filter(s => s.used > 1e-6), T: round3(T), finish, unplanned: round3(unplanned) };
+}
+function currentShiftInfo(cal, now) {
+  const it = slotsFrom(cal, now, 'start');
+  const n = it.next();
+  if (n.done) return null;
+  return n.value;
+}
+function buildCtx() {
+  const sh = sheet(), now = Date.now();
+  const cx = { plan: new Map(), now, today: startOfToday() };
+  if (ui.module === 'm1') return cx;
+  if (calOn(sh)) {
+    const r = planWithCalendar(sh, now);
+    cx.plan = r.plan; cx.sum = r;
+  } else {
+    const S = sh.shift > 0 ? sh.shift : DEFAULT_SHIFT;
+    let cum = 0;
+    for (const row of sh.rows) {
+      const t = orderTotal(row);
+      if (!(t > 0)) continue;
+      const a = cum, b = cum + t;
+      const s1 = Math.floor(a / S + 1e-9) + 1, s2 = Math.max(s1, Math.ceil(b / S - 1e-9));
+      cx.plan.set(row.id, { label: s1 === s2 ? `${s1}. směna` : `${s1}.–${s2}. směna` });
+      cum = b;
+    }
+  }
+  return cx;
+}
+
+/* =====================================================================
+   FILTRY A ŘAZENÍ
+   ===================================================================== */
+function matchFilter(col, row, f) {
+  if (f == null || f === '') return true;
+  if (col.type === 'status') { const v = row[col.key] || ''; return f === '__empty' ? !v : v === f; }
+  f = String(f).trim();
+  if (!f) return true;
+  const raw = rawOf(col, row);
+  const empty = raw == null || raw === '';
+  if (f === '=') return empty;
+  if (f === '!=' || f === '<>' || f === '!') return !empty;
+  const m = f.match(/^(>=|<=|<>|!=|>|<|=)\s*(.+)$/);
+  if (m) {
+    let a, b;
+    if (col.type === 'date') { b = parseDate(normDate(m[2])); a = empty ? null : parseDate(String(raw)); if (b == null) b = NaN; }
+    else { b = parseNum(m[2]); a = empty ? null : numVal(raw); }
+    if (!isNaN(b)) {
+      if (a == null || isNaN(a)) return false;
+      switch (m[1]) {
+        case '>': return a > b; case '<': return a < b; case '>=': return a >= b; case '<=': return a <= b;
+        case '=': return a === b; default: return a !== b;
+      }
+    }
+    if (isNumericCol(col) || col.type === 'date') return true;
+  }
+  const text = normText(isNum(raw) ? `${raw} ${copyNum(raw)}` : String(raw ?? ''));
+  const parts = s => s.split(';').map(p => normText(p.trim())).filter(Boolean);
+  if (f.startsWith('!')) return !parts(f.slice(1)).some(p => text.includes(p));
+  if (f.startsWith('=')) { const t = normText(String(raw ?? '')); return parts(f.slice(1)).some(p => t === p); }
+  const ps = parts(f);
+  return !ps.length || ps.some(p => text.includes(p));
+}
+function sortKey(col, raw) {
+  if (raw == null || raw === '') return { e: 1, t: 0, v: 0 };
+  if (col.type === 'date') { const d = parseDate(String(raw)); return d != null ? { e: 0, t: 0, v: d } : { e: 0, t: 1, v: String(raw) }; }
+  if (isNumericCol(col)) { const n = numVal(raw); if (isNum(n)) return { e: 0, t: 0, v: n }; }
+  return { e: 0, t: 1, v: String(raw) };
+}
+function sortRows(rows, col, dir) {
+  const k = dir === 'desc' ? -1 : 1;
+  return rows.map((row, i) => ({ row, i, s: sortKey(col, rawOf(col, row)) }))
+    .sort((a, b) => {
+      const x = a.s, y = b.s;
+      if (x.e !== y.e) return x.e - y.e;
+      if (x.t !== y.t) return (x.t - y.t) * k;
+      const c = x.t === 0 ? x.v - y.v : collator.compare(x.v, y.v);
+      return c ? c * k : a.i - b.i;
+    }).map(o => o.row);
+}
+function recomputeView() {
+  const sh = sheet(), cs = cols();
+  rowMap = new Map(sh.rows.map(r => [r.id, r]));
+  ctx = buildCtx();
+  let rows = sh.rows.filter(r => cs.every(c => matchFilter(c, r, sh.filters[c.key])));
+  if (sh.sort) { const col = cs.find(c => c.key === sh.sort.key); if (col) rows = sortRows(rows, col, sh.sort.dir); }
+  viewIds = rows.map(r => r.id);
+}
+
+/* =====================================================================
+   VYKRESLOVÁNÍ
+   ===================================================================== */
+function renderAll() {
+  if (editing) editing = null;
+  document.querySelectorAll('#modnav button').forEach(b => b.classList.toggle('active', b.dataset.mod === ui.module));
+  document.title = 'Plánovač výroby – ' + (ui.module === 'm1' ? 'Materiál a expedice' : 'Plán výroby');
+  renderSheetbar(); renderToolbar(); renderPanel();
+  recomputeView(); renderGrid(); updatePanel(); updateStatus();
+}
+
+function renderSheetbar() {
+  $('#sheetbar').innerHTML = data.sheets.map(s =>
+    `<div class="stab${s.id === data.activeId ? ' active' : ''}" data-sid="${esc(s.id)}" title="Klik = otevřít · dvojklik = přejmenovat">` +
+    `<span class="nm">${esc(s.name)}</span>${calOn(s) ? '<span class="calb" title="Používá rozpis směn">ROZPIS</span>' : ''}<span class="cnt">${s.rows.length}</span>` +
+    `<button class="x" data-del="${esc(s.id)}" title="Smazat pracoviště">×</button></div>`
+  ).join('') + `<button class="addtab" id="addSheet" title="Přidat nové pracoviště (list)">+ Přidat pracoviště</button>`;
+}
+function updateSheetCount() {
+  const t = document.querySelector(`.stab[data-sid="${CSS.escape(sheet().id)}"] .cnt`);
+  if (t) t.textContent = sheet().rows.length;
+}
+
+function renderToolbar() {
+  $('#toolbar').innerHTML = `
+    <button class="btn" data-act="addRow" title="Přidat prázdný řádek na konec">+ Přidat řádek</button>
+    <button class="btn" data-act="insRow" title="Vložit prázdný řádek nad vybraný (Ctrl+Shift++)">Vložit řádek nad</button>
+    <button class="btn" data-act="delRows" title="Odstranit vybrané řádky (Ctrl+−, nebo pravé tlačítko myši)">Odstranit řádky</button>
+    <span class="sep"></span>
+    <button class="btn" data-act="up" title="Posunout vybrané řádky nahoru (Alt+↑) – mění pořadí výroby">▲</button>
+    <button class="btn" data-act="down" title="Posunout vybrané řádky dolů (Alt+↓) – mění pořadí výroby">▼</button>
+    <span class="sep"></span>
+    <button class="btn" data-act="undo" title="Zpět (Ctrl+Z)">↶ Zpět</button>
+    <button class="btn" data-act="redo" title="Znovu (Ctrl+Y)">↷ Znovu</button>
+    <span class="sep"></span>
+    <button class="btn primary" data-act="import" title="Nahrát soubor z Excelu / SAPu (.xlsx, .csv, .txt) nebo vložit data a určit, který sloupec je který">Import z Excelu / SAP…</button>
+    <button class="btn" data-act="copyAll" title="Zkopírovat zobrazené řádky včetně záhlaví (pro Excel / e-mail)">Kopírovat tabulku</button>
+    <span class="sep"></span>
+    <button class="btn" data-act="clearFilters">Zrušit filtry a řazení</button>
+    <button class="btn" data-act="applySort" title="Seřadí řádky v listu natrvalo podle aktuálního řazení (= nové pořadí výroby)">Uložit řazení jako pořadí</button>
+    <span class="spacer"></span>
+    <button class="btn" data-act="cal"${ui.module === 'm1' ? ' hidden' : ''} title="Nastavit směny pracoviště (týdenní vzor, výjimky, noční)">Rozpis směn…</button>
+    <button class="btn danger" data-act="clearSheet" title="Smazat všechny řádky tohoto listu">Vymazat list</button>`;
+}
+function updateToolbarState() {
+  const sh = sheet(), h = H(), tb = $('#toolbar');
+  const set = (a, dis) => { const b = tb.querySelector(`[data-act="${a}"]`); if (b) b.disabled = dis; };
+  set('undo', !h.u.length); set('redo', !h.r.length);
+  set('clearFilters', !hasFilters(sh) && !sh.sort);
+  const ap = tb.querySelector('[data-act="applySort"]'); if (ap) ap.hidden = !sh.sort;
+  set('up', !!sh.sort); set('down', !!sh.sort);
+}
+
+/* ---------- panel kapacity ---------- */
+function renderPanel() {
+  const p = $('#panel'), sh = sheet();
+  if (ui.module === 'm1') {
+    p.innerHTML = `<div class="sum">
+      <span class="chip" data-f="">Řádků <b id="sTot">0</b></span>
+      <span class="chip ok" data-f="OK">Materiál OK <b id="sOk">0</b></span>
+      <span class="chip nok" data-f="NOK">Materiál NOK <b id="sNok">0</b></span>
+      <span class="chip empty" data-f="__empty">Nevyplněno <b id="sEmpty">0</b></span>
+      <span class="hint">Klik na ukazatel = rychlý filtr · stav materiálu: klik na štítek, nebo klávesy <kbd>O</kbd> / <kbd>N</kbd> pro celý výběr</span>
+    </div>`;
+    return;
+  }
+  if (calOn(sh)) {
+    p.innerHTML = `<div class="cap">
+      <div class="kpi main"><span class="l">Celkový čas pracoviště</span><span class="v" id="cTot"></span><span class="s" id="cTotS"></span></div>
+      <div class="kpi main"><span class="l">Práce na</span><span class="v" id="cShifts"></span><span class="s" id="cShiftsS"></span></div>
+      <div class="kpi main"><span class="l">Hotovo (odhad)</span><span class="v" id="cFin"></span><span class="s" id="cFinS"></span></div>
+      <div class="kpi warn" id="cWarn" hidden><span class="l">Nevejde se</span><span class="v" id="cWarnV"></span><span class="s">v rozpisu chybí směny</span></div>
+      <div class="kpi"><span class="l">Aktuálně na pracovišti</span><span class="v sm" id="cNow"></span><span class="s" id="cNowS"></span></div>
+      <label class="kpi"><span class="l">Plánovat od</span>
+        <select id="planFrom"><option value="now">teď (zbytek aktuální směny)</option><option value="start">začátku aktuální směny</option><option value="next">začátku příští směny</option></select>
+        <span class="s">aktualizuje se každou minutu</span></label>
+      <div class="kpi filt" id="cFilt" hidden><span class="l">Jen zobrazené (filtr)</span><span class="v" id="cFiltV"></span><span class="s" id="cFiltS"></span></div>
+      <div class="kpi calk"><span class="l">Rozpis směn</span><span><button class="btn sm primary" data-opencal>Upravit rozpis…</button></span><span class="s">zapnutý – počítá se podle kalendáře</span></div>
+    </div>
+    <div class="shiftrow"><div class="shifts" id="shiftBoxes"></div></div>`;
+    $('#planFrom').value = sh.cal.planFrom;
+  } else {
+    p.innerHTML = `<div class="cap">
+      <label class="kpi"><span class="l">Délka jedné směny</span><span class="v"><input id="shiftLen" type="number" min="1" step="1"> min</span><span class="s" id="shiftLenH"></span></label>
+      <div class="kpi main"><span class="l">Celkový čas pracoviště</span><span class="v" id="cTot"></span><span class="s" id="cTotS"></span></div>
+      <div class="kpi main"><span class="l">Práce na</span><span class="v" id="cShifts"></span><span class="s" id="cShiftsS"></span></div>
+      <div class="kpi"><span class="l">Poslední směna</span><span class="v" id="cLast"></span><span class="s" id="cLastS"></span></div>
+      <div class="kpi filt" id="cFilt" hidden><span class="l">Jen zobrazené (filtr)</span><span class="v" id="cFiltV"></span><span class="s" id="cFiltS"></span></div>
+      <div class="kpi"><span class="l">Rozpis směn</span><span><button class="btn sm" data-opencal>Nastavit rozpis směn…</button></span><span class="s">vypnutý – pevná délka směny</span></div>
+    </div>
+    <div class="shiftrow"><div class="shifts" id="shiftBoxes"></div>
+      <span class="legend"><i style="background:#3a6cc0"></i>plná směna<i style="background:#e3a72f"></i>rozpracovaná</span></div>`;
+    $('#shiftLen').value = sh.shift;
+  }
+}
+function setText(id, v) { const el = $(id); if (el) el.textContent = v; }
+function filteredMinutes() {
+  let FT = 0;
+  for (const id of viewIds) { const t = orderTotal(rowMap.get(id)); if (t !== '') FT += t; }
+  return round3(FT);
+}
+function isBlank(row) { return cols().every(c => c.type === 'calc' || row[c.key] == null || row[c.key] === ''); }
+function updatePanel() {
+  const sh = sheet();
+  if (ui.module === 'm1') {
+    let tot = 0, ok = 0, nok = 0, em = 0;
+    for (const r of sh.rows) {
+      if (isBlank(r)) continue;
+      tot++;
+      if (r.mat === 'OK') ok++; else if (r.mat === 'NOK') nok++; else em++;
+    }
+    setText('#sTot', tot); setText('#sOk', ok); setText('#sNok', nok); setText('#sEmpty', em);
+    const cur = sh.filters.mat || '';
+    document.querySelectorAll('#panel .chip').forEach(ch => ch.classList.toggle('on', !!cur && ch.dataset.f === cur));
+    return;
+  }
+  let T = 0, n = 0;
+  for (const r of sh.rows) { const t = orderTotal(r); if (t !== '') { T += t; n++; } }
+  T = round3(T);
+  setText('#cTot', fmtNum(T) + ' min');
+  setText('#cTotS', `${fmtHM(T)} · ${n} ${plural(n, 'zakázka', 'zakázky', 'zakázek')}`);
+  const filt = hasFilters(sh), fbox = $('#cFilt');
+  if (fbox) fbox.hidden = !filt;
+
+  if (calOn(sh)) { updatePanelCal(sh); return; }
+
+  const S = sh.shift > 0 ? sh.shift : DEFAULT_SHIFT;
+  const shifts = T / S;
+  const full = Math.floor(shifts + 1e-9);
+  let rem = round3(T - full * S); if (rem < 0.001) rem = 0;
+  setText('#shiftLenH', fmtHM(S));
+  const sh2 = Math.round(shifts * 100) / 100;
+  setText('#cShifts', `${fmtNum(sh2)} ${plural(sh2, 'směnu', 'směny', 'směn')}`);
+  setText('#cShiftsS', `plně vykryto: ${full} ${plural(full, 'směna', 'směny', 'směn')}`);
+  if (T <= 0) { setText('#cLast', '—'); setText('#cLastS', 'žádná práce'); }
+  else if (rem > 0) {
+    const pct = clamp(Math.round(rem / S * 100), 1, 99);
+    setText('#cLast', `${full + 1}. směna: ${pct} %`);
+    setText('#cLastS', `obsazeno ${fmtNum(rem)} min · volno ${fmtNum(round3(S - rem))} min`);
+  } else { setText('#cLast', `${full}. směna: 100 %`); setText('#cLastS', 'poslední směna je naplněna celá'); }
+  if (filt) { const FT = filteredMinutes(); setText('#cFiltV', fmtNum(FT) + ' min'); setText('#cFiltS', `${fmtNum(Math.round(FT / S * 100) / 100)} směny · ${viewIds.length} řádků`); }
+
+  const box = $('#shiftBoxes'); if (!box) return;
+  const count = full + (rem > 0 ? 1 : 0);
+  if (!count) { box.innerHTML = '<span class="muted">Tabulka zatím neobsahuje žádnou práci.</span>'; return; }
+  const MAX = 250, parts = [];
+  for (let i = 1; i <= Math.min(count, MAX); i++) {
+    const isFull = i <= full, pct = isFull ? 100 : clamp(Math.round(rem / S * 100), 1, 99);
+    parts.push(`<div class="sb ${isFull ? 'full' : 'partial'}" title="Směna ${i}: ${pct} %"><div class="f" style="width:${pct}%"></div><div class="t"><span>${i}.</span><span>${pct} %</span></div></div>`);
+  }
+  if (count > MAX) parts.push(`<span class="muted">… a dalších ${count - MAX}</span>`);
+  box.innerHTML = parts.join('');
+}
+function updatePanelCal(sh) {
+  const sum = ctx.sum || { slots: [], T: 0, finish: null, unplanned: 0 }, now = ctx.now;
+  const slots = sum.slots;
+  let frac = 0; slots.forEach(s => { frac += s.used / s.cap; });
+  frac = Math.round(frac * 100) / 100;
+  const last = slots[slots.length - 1];
+  setText('#cShifts', `${fmtNum(frac)} ${plural(frac, 'směnu', 'směny', 'směn')}`);
+  setText('#cShiftsS', last ? `${slots.length} ${plural(slots.length, 'směna', 'směny', 'směn')} v rozpisu · poslední na ${clamp(Math.round(last.used / last.cap * 100), 1, 100)} %` : 'žádná práce');
+  if (sum.finish) { setText('#cFin', fmtDT(sum.finish)); setText('#cFinS', `za ${fmtSpan((sum.finish - now) / 60000)}`); }
+  else { setText('#cFin', '—'); setText('#cFinS', sum.T ? '' : 'žádná práce'); }
+  const w = $('#cWarn'); if (w) { w.hidden = !(sum.unplanned > 0); setText('#cWarnV', fmtNum(sum.unplanned) + ' min'); }
+
+  const cur = currentShiftInfo(sh.cal, now);
+  if (!cur) { setText('#cNow', 'žádné směny'); setText('#cNowS', 'v rozpisu nejsou směny'); }
+  else if (cur.current) { setText('#cNow', `${cur.t.name} ${hmShort(cur.t.start)}–${hmShort(cur.t.end)}`); setText('#cNowS', `běží · do konce ${fmtSpan((cur.end - now) / 60000)}`); }
+  else { setText('#cNow', 'mimo směnu'); setText('#cNowS', `další: ${DOW[cur.day.getDay()]} ${fmtD(cur.day)} ${cur.t.name} ${hmShort(cur.t.start)}`); }
+
+  if (hasFilters(sh)) { const FT = filteredMinutes(); setText('#cFiltV', fmtNum(FT) + ' min'); setText('#cFiltS', `${viewIds.length} řádků`); }
+
+  const box = $('#shiftBoxes'); if (!box) return;
+  if (!slots.length) { box.innerHTML = '<span class="muted">Tabulka zatím neobsahuje žádnou práci.</span>'; return; }
+  const MAX = 200, parts = [];
+  let prevDay = null;
+  slots.slice(0, MAX).forEach(s => {
+    const k = dayKey(s.day);
+    if (prevDay && prevDay !== k) parts.push('<span class="daygap"></span>');
+    prevDay = k;
+    const pct = clamp(Math.round(s.used / s.cap * 100), 1, 100);
+    parts.push(`<div class="sb2${s.current ? ' cur' : ''}" style="--c:${esc(s.t.color)}" title="${esc(`${DOW[s.day.getDay()]} ${fmtD(s.day)} ${s.t.name} ${hmShort(s.t.start)}–${hmShort(s.t.end)}\nObsazeno ${fmtNum(round3(s.used))} z ${fmtNum(round3(s.cap))} min (${pct} %)${s.current ? '\n(aktuální směna)' : ''}`)}"><div class="f" style="width:${pct}%"></div><div class="t"><b>${DOW[s.day.getDay()]} ${fmtD(s.day)}</b>${esc(s.t.short || s.t.name)} · ${pct} %</div></div>`);
+  });
+  if (slots.length > MAX) parts.push(`<span class="muted">… a dalších ${slots.length - MAX}</span>`);
+  box.innerHTML = parts.join('');
+}
+
+/* ---------- mřížka ---------- */
+function renderGrid() {
+  const sh = sheet(), cs = cols();
+  const wSum = cs.reduce((a, c) => a + c.w, 0), W = ui.widths[ui.module], px = W && cs.some(c => W[c.key]);
+  const colW = c => px ? (W[c.key] || defaultPx(c)) + 'px' : (c.w / wSum * 100).toFixed(3) + '%';
+  let h = `<colgroup><col style="width:46px">${cs.map(c => `<col style="width:${colW(c)}">`).join('')}</colgroup><thead><tr><th class="corner" title="Vybrat vše (Ctrl+A) · pravé tlačítko = šířky sloupců"></th>`;
+  cs.forEach((c, i) => {
+    const dir = sh.sort && sh.sort.key === c.key ? sh.sort.dir : '';
+    const arrow = dir === 'asc' ? '▲' : dir === 'desc' ? '▼' : '⇅';
+    const fv = sh.filters[c.key] || '';
+    let f;
+    if (c.type === 'status') {
+      const o = (v, l) => `<option value="${v}"${fv === v ? ' selected' : ''}>${l}</option>`;
+      f = `<select class="fin${fv ? ' on' : ''}" data-fc="${i}">${o('', 'Vše')}${o('OK', 'OK')}${o('NOK', 'NOK')}${o('__empty', 'Nevyplněno')}</select>`;
+    } else f = `<input class="fin${fv ? ' on' : ''}" data-fc="${i}" value="${esc(fv)}" placeholder="Filtr…" title="${esc(FILTER_HELP)}" autocomplete="off" spellcheck="false">`;
+    const title = `${c.label}${c.hint ? ' – ' + c.hint : ''}\n(klik = vybrat celý sloupec)`;
+    h += `<th class="${isNumericCol(c) ? 'th-num' : ''}"><div class="hwrap"><span class="hl" data-cc="${i}" title="${esc(title)}">${esc(c.label)}</span>` +
+      (c.sortable === false ? '' : `<button class="sortbtn${dir ? ' on' : ''}" data-sc="${i}" title="Řadit (vzestupně → sestupně → bez řazení)">${arrow}</button>`) +
+      `</div>${f}<span class="rz" data-rz="${i}" title="Táhněte = šířka sloupce · dvojklik = podle obsahu"></span></th>`;
+  });
+  h += '</tr></thead><tbody></tbody>';
+  grid.innerHTML = h;
+  grid.style.width = px ? (46 + cs.reduce((a, c) => a + (W[c.key] || defaultPx(c)), 0)) + 'px' : '';
+  renderBody();
+}
+function cellView(col, row) {
+  let cls = 'c-' + col.type + (isNumericCol(col) ? ' num' : '');
+  if (!row) return { html: '', cls };
+  if (col.type === 'status') {
+    const v = row[col.key];
+    return { cls, html: v === 'OK' ? '<span class="badge ok">OK</span>' : v === 'NOK' ? '<span class="badge nok">NOK</span>' : '<span class="badge none">–</span>' };
+  }
+  if (col.type === 'calc') {
+    const v = col.calc(row, ctx);
+    if (col.bad && col.bad(row, ctx)) cls += ' bad';
+    return { cls, html: v === '' || v == null ? '' : isNum(v) ? fmtNum(v) : esc(v), title: col.text && v ? String(v) : '' };
+  }
+  const v = row[col.key];
+  if (v == null || v === '') return { html: '', cls };
+  if (col.type === 'num') {
+    if (isNum(v)) return { html: fmtNum(v), cls };
+    return { html: esc(v), cls: cls + ' invalid', title: 'Hodnota není číslo – nepočítá se do součtů' };
+  }
+  if (col.type === 'date') {
+    const d = parseDate(v);
+    if (d != null && d < ctx.today) return { html: esc(v), cls: cls + ' late', title: v + ' – termín již uplynul' };
+  }
+  return { html: esc(v), cls, title: String(v).length > 14 ? String(v) : '' };
+}
+function inSel(r, c) {
+  if (!sel) return false;
+  const R = range();
+  return r >= R.r1 && r <= R.r2 && c >= R.c1 && c <= R.c2;
+}
+function selCls(r, c) { return (inSel(r, c) ? ' sel' : '') + (sel && sel.ar === r && sel.ac === c ? ' act' : ''); }
+function clampSel() {
+  if (!sel) return;
+  const mr = nRows() - 1, mc = cols().length - 1;
+  sel.ar = clamp(sel.ar, 0, mr); sel.er = clamp(sel.er, 0, mr);
+  sel.ac = clamp(sel.ac, 0, mc); sel.ec = clamp(sel.ec, 0, mc);
+}
+function renderBody() {
+  editing = null;
+  const sh = sheet(), cs = cols();
+  ghost = hasFilters(sh) ? 3 : Math.max(5, 30 - viewIds.length);
+  clampSel();
+  const N = nRows(), R = sel ? range() : null, parts = new Array(N);
+  for (let r = 0; r < N; r++) {
+    const row = realRow(r);
+    const rsel = R && r >= R.r1 && r <= R.r2 ? ' rsel' : '';
+    let s = `<tr class="${row ? rowClass(row) : 'ghost'}" data-r="${r}"><th class="rn${rsel}">${r + 1}</th>`;
+    for (let c = 0; c < cs.length; c++) {
+      const v = cellView(cs[c], row);
+      s += `<td data-c="${c}" class="${v.cls}${selCls(r, c)}"${v.title ? ` title="${esc(v.title)}"` : ''}>${v.html}</td>`;
+    }
+    parts[r] = s + '</tr>';
+  }
+  const tb = grid.tBodies[0];
+  tb.innerHTML = parts.join('');
+  trs = Array.from(tb.rows);
+  tds = trs.map(tr => Array.from(tr.cells).slice(1));
+  painted = sel ? range() : null;
+}
+function renderCell(r, c) {
+  const td = tds[r] && tds[r][c];
+  if (!td) return;
+  const v = cellView(cols()[c], realRow(r));
+  td.className = v.cls + selCls(r, c);
+  td.innerHTML = v.html;
+  if (v.title) td.title = v.title; else td.removeAttribute('title');
+}
+function renderRow(r) {
+  const tr = trs[r];
+  if (!tr) return;
+  const rr = realRow(r);
+  tr.className = rr ? rowClass(rr) : 'ghost';
+  for (let c = 0; c < cols().length; c++) renderCell(r, c);
+}
+function refreshGlobalCalc() {
+  cols().forEach((col, c) => { if (col.global) for (let r = 0; r < viewIds.length; r++) renderCell(r, c); });
+}
+function paintSel() {
+  if (painted) {
+    for (let r = painted.r1; r <= painted.r2; r++) {
+      const row = tds[r]; if (!row) continue;
+      trs[r].cells[0].classList.remove('rsel');
+      for (let c = painted.c1; c <= painted.c2; c++) row[c] && row[c].classList.remove('sel', 'act');
+    }
+  }
+  if (!sel) { painted = null; return; }
+  clampSel();
+  const R = range();
+  for (let r = R.r1; r <= R.r2; r++) {
+    const row = tds[r]; if (!row) continue;
+    trs[r].cells[0].classList.add('rsel');
+    for (let c = R.c1; c <= R.c2; c++) row[c] && row[c].classList.add('sel');
+  }
+  const a = tds[sel.ar] && tds[sel.ar][sel.ac];
+  if (a) a.classList.add('act');
+  painted = R;
+}
+function scrollCell(r, c) {
+  const td = tds[r] && tds[r][c];
+  if (td) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+function updateStatus() {
+  const sh = sheet(), cs = cols();
+  let left = `<b>${esc(sh.name)}</b> · řádků: ${sh.rows.length}`;
+  if (viewIds.length !== sh.rows.length) left += ` · zobrazeno: ${viewIds.length}`;
+  if (sh.sort) { const c = cs.find(x => x.key === sh.sort.key); if (c) left += ` · řazeno: ${esc(c.label)} ${sh.sort.dir === 'asc' ? '▲' : '▼'}`; }
+  let mid = '';
+  if (sel) {
+    const R = range(), nr = R.r2 - R.r1 + 1, nc = R.c2 - R.c1 + 1;
+    if (nr * nc > 1) {
+      let sum = 0, cnt = 0;
+      const r2 = Math.min(R.r2, viewIds.length - 1);
+      for (let c = R.c1; c <= R.c2; c++) {
+        const col = cs[c]; if (!isNumericCol(col)) continue;
+        for (let r = R.r1; r <= r2; r++) { const v = numVal(rawOf(col, realRow(r))); if (isNum(v)) { sum += v; cnt++; } }
+      }
+      mid = `Výběr: ${nr} × ${nc}`;
+      if (cnt) mid += ` · Součet: <b>${fmtNum(round3(sum))}</b> · Průměr: ${fmtNum(round3(sum / cnt))} · Počet čísel: ${cnt}`;
+    } else if (cs[sel.ac]) mid = `${esc(cs[sel.ac].label)} · řádek ${sel.ar + 1}`;
+  }
+  $('#statusbar').innerHTML = `<span>${left}</span><span>${mid}</span><span class="spacer"></span>` +
+    `<span class="muted">Klik = výběr · psaní / 2× klik = úprava · Ctrl+V vložit · Ctrl+C kopírovat · Del smazat · Ctrl+Z zpět · F1 nápověda</span>`;
+  updateSheetCount(); updateToolbarState();
+}
+
+/* =====================================================================
+   VÝBĚR
+   ===================================================================== */
+function setSel(r, c, er = r, ec = c) { sel = { ar: r, ac: c, er, ec }; paintSel(); updateStatus(); }
+function selectAll() { setSel(0, 0, lastReal(), cols().length - 1); }
+function selectRow(r, extend) {
+  const mc = cols().length - 1;
+  sel = { ar: extend && sel ? sel.ar : r, ac: 0, er: r, ec: mc };
+  paintSel(); updateStatus();
+}
+function selectCol(c, extend) {
+  sel = { ar: 0, ac: extend && sel ? sel.ac : c, er: lastReal(), ec: c };
+  paintSel(); updateStatus();
+}
+function moveSel(dr, dc, extend, jump) {
+  if (!sel) { setSel(0, 0); return; }
+  const mr = nRows() - 1, mc = cols().length - 1;
+  let r = extend ? sel.er : sel.ar, c = extend ? sel.ec : sel.ac;
+  if (jump) { if (dr) r = dr < 0 ? 0 : lastReal(); if (dc) c = dc < 0 ? 0 : mc; }
+  else { r += dr; c += dc; }
+  r = clamp(r, 0, mr); c = clamp(c, 0, mc);
+  if (extend) { sel.er = r; sel.ec = c; } else sel = { ar: r, ac: c, er: r, ec: c };
+  paintSel(); scrollCell(r, c); updateStatus();
+}
+function focusSink() { sink.value = ' '; sink.focus({ preventScroll: true }); sink.select(); }
+
+/* =====================================================================
+   ZÁPIS DAT
+   ===================================================================== */
+function writeCells(list) {
+  if (!list.length) return;
+  pushUndo();
+  const cs = cols(), sh = sheet();
+  let maxR = -1;
+  for (const x of list) if (x.r > maxR) maxR = x.r;
+  const before = viewIds.length;
+  while (viewIds.length <= maxR) {
+    const row = newRow(); sh.rows.push(row); rowMap.set(row.id, row); viewIds.push(row.id);
+  }
+  const touched = new Set();
+  for (const { r, c, v } of list) {
+    const col = cs[c]; if (!col || col.type === 'calc') continue;
+    const row = realRow(r); if (!row) continue;
+    row[col.key] = coerce(col, v); touched.add(r);
+  }
+  save();
+  ctx = buildCtx();
+  if (viewIds.length !== before || touched.size > 300) renderBody();
+  else { touched.forEach(r => renderRow(r)); refreshGlobalCalc(); }
+  updatePanel(); updateStatus();
+}
+function setStatusSel(val) {
+  if (!sel) return;
+  const R = range(), cs = cols(), list = [];
+  for (let c = R.c1; c <= R.c2; c++) {
+    if (cs[c].type !== 'status') continue;
+    for (let r = R.r1; r <= R.r2; r++) list.push({ r, c, v: val });
+  }
+  writeCells(list);
+}
+function toggleStatusAt(r, c) {
+  const row = realRow(r), key = cols()[c].key;
+  const cur = row ? row[key] : '';
+  writeCells([{ r, c, v: cur === 'OK' ? 'NOK' : 'OK' }]);
+}
+function clearSelection() {
+  if (!sel) return;
+  const R = range(), cs = cols(), list = [];
+  for (let r = R.r1; r <= Math.min(R.r2, viewIds.length - 1); r++) {
+    const row = realRow(r);
+    for (let c = R.c1; c <= R.c2; c++) {
+      if (cs[c].type === 'calc') continue;
+      if (row[cs[c].key] != null && row[cs[c].key] !== '') list.push({ r, c, v: '' });
+    }
+  }
+  writeCells(list);
+}
+
+/* ---------- editace buňky ---------- */
+function editText(col, row) {
+  if (!row) return '';
+  const v = row[col.key];
+  if (v == null) return '';
+  return isNum(v) ? copyNum(v) : String(v);
+}
+function startEdit(r, c, initial) {
+  const col = cols()[c];
+  if (!col) return;
+  if (col.type === 'calc') { toast('Tento sloupec se počítá automaticky.'); return; }
+  if (col.type === 'status') { toggleStatusAt(r, c); return; }
+  if (editing) commitEdit();
+  if (!sel || sel.ar !== r || sel.ac !== c || sel.er !== r || sel.ec !== c) { sel = { ar: r, ac: c, er: r, ec: c }; paintSel(); updateStatus(); }
+  const td = tds[r] && tds[r][c];
+  if (!td) return;
+  const inp = document.createElement('input');
+  inp.className = 'cell-input'; inp.spellcheck = false; inp.autocomplete = 'off';
+  inp.value = initial != null ? initial : editText(col, realRow(r));
+  td.classList.add('editing'); td.textContent = ''; td.removeAttribute('title'); td.appendChild(inp);
+  editing = { r, c, inp, typed: initial != null };
+  inp.focus({ preventScroll: true });
+  const L = inp.value.length; inp.setSelectionRange(L, L);
+  inp.addEventListener('keydown', onEditKey);
+  inp.addEventListener('blur', onEditBlur);
+  inp.addEventListener('paste', onEditPaste);
+  scrollCell(r, c);
+}
+function commitEdit() {
+  if (!editing) return;
+  const { r, c, inp } = editing;
+  editing = null;
+  const col = cols()[c], row = realRow(r);
+  const old = row ? (row[col.key] ?? '') : '';
+  if (coerce(col, inp.value) === old) renderCell(r, c);
+  else writeCells([{ r, c, v: inp.value }]);
+}
+function cancelEdit() {
+  if (!editing) return;
+  const { r, c } = editing;
+  editing = null; renderCell(r, c); focusSink();
+}
+function commitIfEditing() { if (editing) commitEdit(); }
+function onEditBlur() { if (editing && editing.inp === this) commitEdit(); }
+function onEditKey(e) {
+  const k = e.key;
+  e.stopPropagation();
+  if (k === 'Enter') { e.preventDefault(); commitEdit(); moveSel(e.shiftKey ? -1 : 1, 0); focusSink(); }
+  else if (k === 'Tab') { e.preventDefault(); commitEdit(); moveSel(0, e.shiftKey ? -1 : 1); focusSink(); }
+  else if (k === 'Escape') { e.preventDefault(); cancelEdit(); }
+  else if (k === 'ArrowUp' || k === 'ArrowDown') { e.preventDefault(); commitEdit(); moveSel(k === 'ArrowUp' ? -1 : 1, 0); focusSink(); }
+  else if (editing && editing.typed && (k === 'ArrowLeft' || k === 'ArrowRight')) {
+    e.preventDefault(); commitEdit(); moveSel(0, k === 'ArrowLeft' ? -1 : 1); focusSink();
+  }
+}
+function onEditPaste(e) {
+  const t = e.clipboardData && e.clipboardData.getData('text/plain');
+  if (t == null) return;
+  const g = parseTSV(t);
+  if (g.length > 1 || (g[0] && g[0].length > 1)) {
+    e.preventDefault();
+    const { r, c } = editing;
+    cancelEdit();
+    sel = { ar: r, ac: c, er: r, ec: c };
+    pasteGrid(g);
+  }
+}
+
+/* ---------- schránka ---------- */
+function cellCopy(col, row) {
+  if (!row) return '';
+  const v = rawOf(col, row);
+  if (v == null) return '';
+  return isNum(v) ? copyNum(v) : String(v);
+}
+function rowsTSV(rowIdxs, c1, c2, header) {
+  const cs = cols(), lines = [];
+  if (header) lines.push(cs.slice(c1, c2 + 1).map(c => tsvCell(c.label)).join('\t'));
+  for (const r of rowIdxs) {
+    const row = realRow(r), cells = [];
+    for (let c = c1; c <= c2; c++) cells.push(tsvCell(cellCopy(cs[c], row)));
+    lines.push(cells.join('\t'));
+  }
+  return lines.join('\r\n');
+}
+function selectionTSV() {
+  const R = range(), idx = [];
+  for (let r = R.r1; r <= Math.min(R.r2, viewIds.length - 1); r++) idx.push(r);
+  if (!idx.length) idx.push(R.r1);
+  return rowsTSV(idx, R.c1, R.c2, false);
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {}
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(ta); ta.select();
+  let ok = false; try { ok = document.execCommand('copy'); } catch {}
+  ta.remove();
+  return ok;
+}
+function pasteGrid(g) {
+  while (g.length > 1 && g[g.length - 1].every(x => x.trim() === '')) g.pop();
+  if (!g.length) return;
+  if (!sel) sel = { ar: 0, ac: 0, er: 0, ec: 0 };
+  const cs = cols(), R = range(), list = [];
+  if (g.length === 1 && g[0].length === 1 && (R.r2 > R.r1 || R.c2 > R.c1)) {
+    for (let r = R.r1; r <= R.r2; r++) for (let c = R.c1; c <= R.c2; c++) if (cs[c].type !== 'calc') list.push({ r, c, v: g[0][0] });
+    if (!list.length) { toast('Do počítaného sloupce nelze vkládat.'); return; }
+    writeCells(list); toast(`Hodnota vyplněna do ${list.length} buněk.`); return;
+  }
+  const r0 = R.r1, c0 = R.c1;
+  let overflow = 0, skipped = false, maxW = 0;
+  g.forEach((line, i) => {
+    maxW = Math.max(maxW, line.length);
+    line.forEach((v, j) => {
+      const c = c0 + j;
+      if (c >= cs.length) { overflow = Math.max(overflow, c - cs.length + 1); return; }
+      if (cs[c].type === 'calc') { skipped = true; return; }
+      list.push({ r: r0 + i, c, v });
+    });
+  });
+  if (!list.length) { toast('Do tohoto sloupce nelze vkládat – počítá se automaticky.'); return; }
+  const before = viewIds.length;
+  writeCells(list);
+  sel = { ar: r0, ac: c0, er: r0 + g.length - 1, ec: Math.min(cs.length - 1, c0 + maxW - 1) };
+  paintSel(); updateStatus();
+  let msg = `Vloženo ${g.length} ${plural(g.length, 'řádek', 'řádky', 'řádků')} × ${Math.min(maxW, cs.length - c0)} sl.`;
+  const added = viewIds.length - before;
+  if (added > 0) msg += ` (nových řádků: ${added})`;
+  if (overflow) msg += ` · ${overflow} sl. navíc ignorováno`;
+  if (skipped) msg += ' · počítaný sloupec přeskočen';
+  toast(msg);
+}
+
+/* =====================================================================
+   AKCE – ŘÁDKY, LISTY
+   ===================================================================== */
+function selRowsReal() {
+  if (!sel) return [];
+  const R = range(), out = [];
+  for (let r = R.r1; r <= Math.min(R.r2, viewIds.length - 1); r++) out.push(r);
+  return out;
+}
+function addRow() {
+  pushUndo();
+  const row = newRow(); sheet().rows.push(row); rowMap.set(row.id, row); viewIds.push(row.id);
+  save(); ctx = buildCtx(); renderBody();
+  const r = viewIds.length - 1; setSel(r, 0); scrollCell(r, 0); updatePanel(); focusSink();
+}
+function insertRowBelow() {
+  if (!sel) { addRow(); return; }
+  const r = range().r2;
+  if (r >= viewIds.length - 1) { addRow(); return; }
+  pushUndo();
+  const sh = sheet(), idx = sh.rows.findIndex(x => x.id === viewIds[r]), row = newRow();
+  sh.rows.splice(idx + 1, 0, row); rowMap.set(row.id, row); viewIds.splice(r + 1, 0, row.id);
+  save(); ctx = buildCtx(); renderBody(); setSel(r + 1, sel.ac); updatePanel(); focusSink();
+}
+function removeEmptyRows() {
+  const sh = sheet(), ids = new Set(sh.rows.filter(isBlank).map(r => r.id));
+  if (!ids.size) { toast('V listu nejsou žádné prázdné řádky.'); return; }
+  pushUndo();
+  sh.rows = sh.rows.filter(r => !ids.has(r.id));
+  save(); recomputeView(); renderBody(); updatePanel(); updateStatus(); focusSink();
+  toast(`Odstraněno prázdných řádků: ${ids.size} (Ctrl+Z vrátí).`);
+}
+function setRowsStatus(val) {
+  const c = cols().findIndex(x => x.type === 'status'), rs = selRowsReal();
+  if (c < 0 || !rs.length) return;
+  writeCells(rs.map(r => ({ r, c, v: val })));
+}
+async function pasteFromClipboard() {
+  try { const t = await navigator.clipboard.readText(); pasteGrid(parseTSV(t)); }
+  catch { toast('Prohlížeč nepovolil čtení schránky – použijte klávesy Ctrl+V.'); }
+  focusSink();
+}
+
+/* ---------- šířka sloupců ---------- */
+function defaultPx(c) {
+  const cs = cols(), wSum = cs.reduce((a, x) => a + x.w, 0);
+  return Math.max(50, Math.round(c.w / wSum * Math.max(600, gridwrap.clientWidth - 48)));
+}
+function ensurePxWidths() {
+  const cs = cols(), ths = grid.tHead.rows[0].cells;
+  const W = ui.widths[ui.module] || (ui.widths[ui.module] = {});
+  cs.forEach((c, k) => { if (!W[c.key]) W[c.key] = Math.round(ths[k + 1].getBoundingClientRect().width); });
+  return W;
+}
+function applyWidths() {
+  const cs = cols(), W = ui.widths[ui.module] || {}, colEls = grid.querySelectorAll('colgroup col');
+  let tot = 46;
+  cs.forEach((c, k) => { const w = W[c.key] || defaultPx(c); colEls[k + 1].style.width = w + 'px'; tot += w; });
+  grid.style.width = tot + 'px';
+}
+function startResize(i, x0) {
+  const cs = cols(), ths = grid.tHead.rows[0].cells;
+  const W = ui.widths[ui.module] || (ui.widths[ui.module] = {});
+  cs.forEach((c, k) => { W[c.key] = Math.round(ths[k + 1].getBoundingClientRect().width); });
+  const w0 = W[cs[i].key];
+  applyWidths();
+  document.body.classList.add('resizing');
+  const move = ev => { W[cs[i].key] = Math.max(40, Math.round(w0 + ev.clientX - x0)); applyWidths(); };
+  const up = () => {
+    document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+    document.body.classList.remove('resizing'); saveUI();
+  };
+  document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+}
+function autoFitCol(i) {
+  const c = cols()[i]; if (!c) return;
+  const W = ensurePxWidths();
+  const g = (autoFitCol.cv || (autoFitCol.cv = document.createElement('canvas'))).getContext('2d');
+  const th = grid.tHead.rows[0].cells[i + 1];
+  g.font = getComputedStyle(th).font;
+  let max = g.measureText(c.label).width + 44;
+  const sample = tds.length ? tds[0][i] : null;
+  if (sample) g.font = getComputedStyle(sample).font;
+  for (let r = 0; r < Math.min(viewIds.length, 5000); r++) {
+    const td = tds[r] && tds[r][i]; if (!td) continue;
+    max = Math.max(max, (c.type === 'status' ? 60 : g.measureText(td.textContent).width) + 18);
+  }
+  W[c.key] = clamp(Math.ceil(max), 50, 800);
+  applyWidths(); saveUI();
+}
+function resetWidths() {
+  delete ui.widths[ui.module]; saveUI(); renderGrid(); toast('Šířky sloupců obnoveny.');
+}
+
+/* ---------- kontextové menu (pravé tlačítko myši) ---------- */
+function ctxOutside(e) { if (!e.target.closest('#ctxm')) closeCtx(); }
+function closeCtx() { const m = $('#ctxm'); if (m) m.remove(); document.removeEventListener('mousedown', ctxOutside, true); }
+function openCtx(x, y, items) {
+  closeCtx();
+  const m = document.createElement('div');
+  m.id = 'ctxm'; m.className = 'ctxm';
+  m.innerHTML = items.map((it, i) => it === '-' ? '<div class="csep"></div>' :
+    `<button data-i="${i}"${it.disabled ? ' disabled' : ''} class="${it.danger ? 'dang' : ''}"><span>${esc(it.label)}</span>${it.kbd ? `<kbd>${esc(it.kbd)}</kbd>` : ''}</button>`).join('');
+  document.body.appendChild(m);
+  m.style.left = Math.max(2, Math.min(x, innerWidth - m.offsetWidth - 4)) + 'px';
+  m.style.top = Math.max(2, Math.min(y, innerHeight - m.offsetHeight - 4)) + 'px';
+  m.addEventListener('mousedown', e => e.preventDefault());
+  m.addEventListener('click', e => {
+    const b = e.target.closest('button[data-i]'); if (!b || b.disabled) return;
+    const it = items[+b.dataset.i]; closeCtx(); it.action();
+  });
+  m.addEventListener('contextmenu', e => e.preventDefault());
+  setTimeout(() => document.addEventListener('mousedown', ctxOutside, true), 0);
+}
+function rowMenu(x, y) {
+  const rs = selRowsReal(), n = rs.length;
+  const items = [
+    { label: 'Kopírovat', kbd: 'Ctrl+C', action: () => copyText(selectionTSV()).then(ok => toast(ok ? 'Zkopírováno.' : 'Kopírování se nepodařilo – použijte Ctrl+C.')) },
+    { label: 'Vložit', kbd: 'Ctrl+V', action: pasteFromClipboard },
+    '-',
+    { label: 'Vložit řádek nad', action: insertRow },
+    { label: 'Vložit řádek pod', action: insertRowBelow },
+    { label: n > 1 ? `Odstranit řádky (${n})` : 'Odstranit řádek', kbd: 'Ctrl+−', danger: true, disabled: !n, action: deleteRows },
+    { label: 'Vymazat obsah buněk', kbd: 'Delete', disabled: !n, action: clearSelection },
+  ];
+  if (ui.module === 'm1') items.push('-',
+    { label: 'Materiál OK u vybraných řádků', kbd: 'O', disabled: !n, action: () => setRowsStatus('OK') },
+    { label: 'Materiál NOK u vybraných řádků', kbd: 'N', disabled: !n, action: () => setRowsStatus('NOK') });
+  items.push('-', { label: 'Odstranit všechny prázdné řádky v listu', action: removeEmptyRows });
+  openCtx(x, y, items);
+}
+function headerMenu(x, y, i) {
+  const c = cols()[i], sh = sheet(), items = [];
+  if (c.sortable !== false) {
+    const setSort = dir => { sh.sort = dir ? { key: c.key, dir } : null; save(); recomputeView(); renderGrid(); updateStatus(); };
+    items.push({ label: 'Seřadit vzestupně', action: () => setSort('asc') }, { label: 'Seřadit sestupně', action: () => setSort('desc') },
+      { label: 'Zrušit řazení', disabled: !sh.sort, action: () => setSort(null) }, '-');
+  }
+  items.push({ label: 'Vybrat celý sloupec', action: () => { selectCol(i, false); focusSink(); } },
+    { label: 'Kopírovat celý sloupec', action: () => { selectCol(i, false); copyText(selectionTSV()).then(ok => toast(ok ? 'Sloupec zkopírován.' : 'Kopírování se nepodařilo.')); } },
+    '-',
+    { label: 'Přizpůsobit šířku obsahu', action: () => autoFitCol(i) },
+    { label: 'Přizpůsobit šířku všech sloupců', action: () => cols().forEach((_, k) => autoFitCol(k)) },
+    { label: 'Obnovit výchozí šířky sloupců', disabled: !ui.widths[ui.module], action: resetWidths });
+  openCtx(x, y, items);
+}
+function insertRow() {
+  if (!sel) { addRow(); return; }
+  const r = range().r1;
+  if (r >= viewIds.length) { addRow(); return; }
+  pushUndo();
+  const sh = sheet(), idx = sh.rows.findIndex(x => x.id === viewIds[r]), row = newRow();
+  sh.rows.splice(idx, 0, row); rowMap.set(row.id, row); viewIds.splice(r, 0, row.id);
+  save(); ctx = buildCtx(); renderBody(); setSel(r, sel.ac); updatePanel(); focusSink();
+}
+async function deleteRows() {
+  const rs = selRowsReal();
+  if (!rs.length) { toast('Vyberte řádky ke smazání (klik na číslo řádku vlevo).'); return; }
+  if (rs.length >= 50 && !(await askConfirm(`Opravdu smazat ${rs.length} řádků?\n(Lze vrátit tlačítkem Zpět)`, { ok: 'Smazat', danger: true }))) return;
+  pushUndo();
+  const ids = new Set(rs.map(r => viewIds[r])), sh = sheet();
+  sh.rows = sh.rows.filter(x => !ids.has(x.id));
+  ids.forEach(id => rowMap.delete(id));
+  viewIds = viewIds.filter(id => !ids.has(id));
+  const r1 = rs[0], ac = sel.ac;
+  save(); ctx = buildCtx(); renderBody();
+  setSel(Math.min(r1, nRows() - 1), ac); updatePanel(); focusSink();
+  toast(`Smazáno ${rs.length} ${plural(rs.length, 'řádek', 'řádky', 'řádků')} (Ctrl+Z vrátí).`);
+}
+function moveRows(dir) {
+  const sh = sheet();
+  if (sh.sort) { toast('Při aktivním řazení nelze řádky přesouvat. Zrušte řazení, nebo použijte „Uložit řazení jako pořadí“.'); return; }
+  const rs = selRowsReal();
+  if (!rs.length) return;
+  const r1 = rs[0], r2 = rs[rs.length - 1];
+  if ((dir < 0 && r1 === 0) || (dir > 0 && r2 >= viewIds.length - 1)) return;
+  pushUndo();
+  const block = viewIds.slice(r1, r2 + 1), bset = new Set(block);
+  const nb = dir < 0 ? viewIds[r1 - 1] : viewIds[r2 + 1];
+  const blockRows = sh.rows.filter(x => bset.has(x.id));
+  const rest = sh.rows.filter(x => !bset.has(x.id));
+  const ni = rest.findIndex(x => x.id === nb);
+  rest.splice(dir < 0 ? ni : ni + 1, 0, ...blockRows);
+  sh.rows = rest;
+  const vr = viewIds.filter(id => !bset.has(id)), vi = vr.indexOf(nb);
+  vr.splice(dir < 0 ? vi : vi + 1, 0, ...block);
+  viewIds = vr;
+  sel.ar += dir; sel.er += dir;
+  save(); ctx = buildCtx(); renderBody(); updatePanel();
+  scrollCell(dir < 0 ? Math.min(sel.ar, sel.er) : Math.max(sel.ar, sel.er), sel.ac); updateStatus();
+}
+function clearFilters() {
+  const sh = sheet(); sh.filters = {}; sh.sort = null;
+  save(); recomputeView(); renderGrid(); updatePanel(); updateStatus();
+}
+function applySort() {
+  const sh = sheet(); if (!sh.sort) return;
+  const col = cols().find(c => c.key === sh.sort.key); if (!col) return;
+  pushUndo();
+  sh.rows = sortRows(sh.rows.slice(), col, sh.sort.dir);
+  sh.sort = null;
+  save(); recomputeView(); renderGrid(); updatePanel(); updateStatus();
+  toast('Pořadí řádků (= pořadí výroby) bylo uloženo podle řazení.');
+}
+async function clearSheet() {
+  const sh = sheet();
+  if (!sh.rows.length) return;
+  if (!(await askConfirm(`Vymazat všechny řádky (${sh.rows.length}) listu „${sh.name}“?\n(Lze vrátit tlačítkem Zpět, dokud stránku nezavřete.)`, { ok: 'Vymazat', danger: true }))) return;
+  pushUndo(); sh.rows = []; afterStructure(); setSel(0, 0);
+}
+function copyAll() {
+  const idx = viewIds.map((_, i) => i);
+  if (!idx.length) { toast('Tabulka je prázdná.'); return; }
+  copyText(rowsTSV(idx, 0, cols().length - 1, true)).then(ok =>
+    toast(ok ? `Zkopírováno ${idx.length} řádků se záhlavím – vložte do Excelu (Ctrl+V).` : 'Kopírování se nepodařilo.'));
+}
+function toggleSort(i) {
+  const sh = sheet(), key = cols()[i].key;
+  if (!sh.sort || sh.sort.key !== key) sh.sort = { key, dir: 'asc' };
+  else if (sh.sort.dir === 'asc') sh.sort.dir = 'desc';
+  else sh.sort = null;
+  save(); recomputeView(); renderGrid(); updateStatus();
+}
+function setFilter(i, v) {
+  const sh = sheet(), key = cols()[i].key;
+  if (v == null || String(v).trim() === '') delete sh.filters[key]; else sh.filters[key] = v;
+  save(); recomputeView(); renderBody(); updatePanel(); updateStatus();
+}
+function switchModule(k) {
+  if (k === ui.module || !store[k]) return;
+  commitIfEditing(); closeModal();
+  ui.module = k; data = store[k]; saveUI(); sel = null;
+  renderAll(); setSel(0, 0); focusSink();
+}
+function switchSheet(id) {
+  commitIfEditing();
+  if (data.activeId === id) return;
+  data.activeId = id; save(); sel = null;
+  renderAll(); setSel(0, 0); focusSink();
+}
+function addSheet() {
+  commitIfEditing();
+  let n = data.sheets.length + 1;
+  while (data.sheets.some(s => s.name === 'Pracoviště ' + n)) n++;
+  const s = newSheet('Pracoviště ' + n);
+  data.sheets.push(s); data.activeId = s.id; save(); sel = null;
+  renderAll(); setSel(0, 0);
+  startRename(s.id);
+}
+async function deleteSheet(id) {
+  commitIfEditing();
+  const s = data.sheets.find(x => x.id === id); if (!s) return;
+  if (!(await askConfirm(`Smazat pracoviště „${s.name}“${s.rows.length ? ` včetně ${s.rows.length} řádků` : ''} a jeho rozpis směn?\n\nTuto akci NELZE vrátit.`, { ok: 'Smazat pracoviště', danger: true }))) return;
+  const i = data.sheets.indexOf(s);
+  data.sheets.splice(i, 1); hist.delete(id);
+  if (!data.sheets.length) data.sheets.push(newSheet('Pracoviště 1'));
+  if (data.activeId === id) data.activeId = data.sheets[Math.max(0, i - 1)].id;
+  save(); sel = null; renderAll(); setSel(0, 0);
+}
+function startRename(id) {
+  const tab = document.querySelector(`.stab[data-sid="${CSS.escape(id)}"]`);
+  const s = data.sheets.find(x => x.id === id);
+  if (!tab || !s) return;
+  const nm = tab.querySelector('.nm'), inp = document.createElement('input');
+  inp.value = s.name; nm.replaceWith(inp); inp.focus(); inp.select();
+  let done = false;
+  const finish = ok => {
+    if (done) return; done = true;
+    if (ok) { const v = inp.value.trim(); if (v && v !== s.name) { s.name = v; save(); } }
+    renderSheetbar(); updateStatus();
+  };
+  inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') finish(false); });
+  inp.addEventListener('blur', () => finish(true));
+  ['mousedown', 'click', 'dblclick'].forEach(ev => inp.addEventListener(ev, e => e.stopPropagation()));
+}
+
+/* ---------- záloha ---------- */
+function exportBackup() {
+  commitIfEditing();
+  const payload = { app: 'planovac-vyroby', version: 3, exported: new Date().toISOString(), m1: store.m1, m2: store.m2,
+    importMapa: { m1: safeParse(lsGet(KEY_IMPORT.m1)), m2: safeParse(lsGet(KEY_IMPORT.m2)) } };
+  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+  const d = new Date();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `planovac-vyroby-zaloha-${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}.json`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast('Záloha stažena.');
+}
+function importBackup(file) {
+  const fr = new FileReader();
+  fr.onload = async () => {
+    const p = safeParse(fr.result);
+    const d1 = p && normalizeData('m1', p.m1), d2 = p && normalizeData('m2', p.m2 || (p.sheets ? p : null));
+    if (!d1 && !d2) { showAlert('Soubor nevypadá jako záloha Plánovače výroby.'); return; }
+    const what = d1 && d2 ? 'oba moduly' : d1 ? 'modul Materiál a expedice' : 'modul Plán výroby';
+    if (!(await askConfirm(`Obnovit data ze zálohy (${what})?\n\nSoučasná data v ${d1 && d2 ? 'obou modulech' : 'tomto modulu'} budou nahrazena daty ze souboru.`, { ok: 'Obnovit', danger: true }))) return;
+    if (d1) { store.m1 = d1; save('m1'); }
+    if (d2) { store.m2 = d2; save('m2'); }
+    data = store[ui.module];
+    const im = p.importMapa;
+    if (im) try {
+      if (im.headers) localStorage.setItem(KEY_IMPORT.m2, JSON.stringify(im));
+      else { if (im.m1) localStorage.setItem(KEY_IMPORT.m1, JSON.stringify(im.m1)); if (im.m2) localStorage.setItem(KEY_IMPORT.m2, JSON.stringify(im.m2)); }
+    } catch {}
+    hist.clear(); sel = null; renderAll(); setSel(0, 0);
+    toast('Data byla obnovena ze zálohy.');
+  };
+  fr.readAsText(file);
+}
+
+/* ---------- vlastní potvrzovací okno (nativní confirm/alert bývá v některých prohlížečích blokovaný) ---------- */
+function askConfirm(msg, opts = {}) {
+  return new Promise(res => {
+    const o = document.createElement('div');
+    o.className = 'cfm';
+    o.innerHTML = `<div class="cbox${opts.danger ? ' danger' : ''}"><div class="cmsg">${esc(msg).replace(/\n/g, '<br>')}</div>
+      <div class="cbtns">${opts.alert ? '' : `<button class="btn" data-n>${esc(opts.cancel || 'Zrušit')}</button>`}
+      <button class="btn ${opts.danger ? 'dfill' : 'primary'}" data-y>${esc(opts.ok || (opts.alert ? 'OK' : 'Ano'))}</button></div></div>`;
+    document.body.appendChild(o);
+    const prevFocus = document.activeElement;
+    const done = v => {
+      o.remove(); document.removeEventListener('keydown', key, true);
+      if (prevFocus && prevFocus.focus && document.contains(prevFocus)) prevFocus.focus({ preventScroll: true });
+      res(v);
+    };
+    const key = e => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); done(!!opts.alert); }
+      else if (e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); done(true); }
+    };
+    document.addEventListener('keydown', key, true);
+    o.addEventListener('mousedown', e => { if (e.target === o) done(!!opts.alert); });
+    o.querySelector('[data-y]').onclick = () => done(true);
+    const n = o.querySelector('[data-n]'); if (n) n.onclick = () => done(false);
+    setTimeout(() => o.querySelector('[data-y]').focus(), 0);
+  });
+}
+const showAlert = msg => askConfirm(msg, { alert: true });
+
+/* ---------- toast & modal ---------- */
+let toastT, modalOnClose = null, modalKind = '';
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3400);
+}
+function openModal(title, body, buttons, opts = {}) {
+  commitIfEditing();
+  const m = $('#modal');
+  m.className = 'modal' + (opts.wide ? ' wide' : '');
+  modalOnClose = opts.onClose || null; modalKind = opts.kind || '';
+  m.innerHTML = `<div class="mbox"><div class="mhead"><span>${esc(title)}</span><button class="x" data-close title="Zavřít">×</button></div><div class="mbody">${body}</div><div class="mfoot">${opts.footLeft || ''}</div></div>`;
+  const foot = m.querySelector('.mfoot');
+  buttons.forEach(b => {
+    const el = document.createElement('button');
+    el.className = 'btn' + (b.primary ? ' primary' : ''); el.textContent = b.label;
+    if (b.id) el.id = b.id;
+    el.onclick = async () => {
+      if (b.onClick) { el.disabled = true; let r; try { r = await b.onClick(); } finally { el.disabled = false; } if (r === false) return; }
+      closeModal();
+    };
+    foot.appendChild(el);
+  });
+  m.querySelector('[data-close]').onclick = closeModal;
+  m.hidden = false;
+}
+function closeModal() {
+  const m = $('#modal');
+  if (m.hidden) return;
+  m.hidden = true; m.innerHTML = '';
+  const cb = modalOnClose; modalOnClose = null; modalKind = '';
+  if (cb) cb();
+  focusSink();
+}
+
+/* =====================================================================
+   ROZPIS SMĚN – EDITOR
+   ===================================================================== */
+const calUI = { weekStart: null, bulk: new Set(), bulkWork: false };
+function ensureCal(sh) { if (!sh.cal) sh.cal = defaultCal(); return sh.cal; }
+function cleanOverride(cal, key) {
+  const ov = cal.overrides[key];
+  if (ov === undefined) return;
+  const def = defaultDayIds(cal, keyToDate(key));
+  const a = [...ov].sort().join(','), b = [...def].sort().join(',');
+  if (a === b) delete cal.overrides[key];
+}
+function dayCap(cal, date) { return dayTypes(cal, date).reduce((a, t) => a + typeNet(t), 0); }
+
+function openCalendar() {
+  const sh = sheet(), first = !sh.cal;
+  const cal = ensureCal(sh);
+  if (first) cal.enabled = true;
+  save();
+  calUI.weekStart = mondayOf(new Date());
+  calUI.bulk = new Set(); calUI.bulkWork = false;
+  openModal(`Rozpis směn – ${sh.name}`, `<div id="calRoot">
+      <div id="calHead"></div>
+      <div class="calcols">
+        <div class="sect" id="calTypes"></div>
+        <div class="sect" id="calWeek"></div>
+      </div>
+      <div class="sect" id="calMonth"></div>
+      <div class="sect" id="calTools"></div>
+    </div>`,
+    [{ label: 'Hotovo', primary: true }],
+    { wide: true, kind: 'cal', footLeft: '<span class="muted" style="margin-right:auto">Změny se ukládají automaticky.</span>',
+      onClose: () => { save(); sel = null; renderAll(); setSel(0, 0); } });
+  renderCalAll();
+  const root = $('#calRoot');
+  root.addEventListener('click', onCalClick);
+  root.addEventListener('input', onCalInput);
+  root.addEventListener('change', onCalChange);
+}
+function renderCalAll() { renderCalHead(); renderCalTypes(); renderCalWeek(); renderCalMonth(); renderCalTools(); }
+function renderCalHead() {
+  const sh = sheet(), cal = sh.cal;
+  $('#calHead').innerHTML = `<div class="calhead${cal.enabled ? '' : ' offm'}">
+    <label><input type="checkbox" id="calEnabled"${cal.enabled ? ' checked' : ''}> <b>Plánovat podle rozpisu směn</b></label>
+    <span class="muted">${cal.enabled
+      ? 'Zakázky se rozplánují do konkrétních směn podle kalendáře níže, od aktuálního data a času.'
+      : `Rozpis je vypnutý – počítá se jako dosud s pevnou délkou směny (${fmtNum(sh.shift)} min). Nastavení níže zůstane uložené.`}</span></div>`;
+}
+function renderCalTypes() {
+  const cal = sheet().cal;
+  const rows = cal.types.map(t => `<tr data-tid="${esc(t.id)}">
+      <td><input type="color" data-f="color" value="${esc(t.color)}" title="Barva"></td>
+      <td><input data-f="name" value="${esc(t.name)}" style="width:110px"></td>
+      <td><input data-f="short" value="${esc(t.short)}" maxlength="4" style="width:46px" title="Zkratka do tabulky a kalendáře"></td>
+      <td><input data-f="start" value="${esc(hmShort(t.start))}" class="tm" placeholder="6:00" title="Začátek směny (např. 6:00, 22:00)"></td>
+      <td><input data-f="end" value="${esc(hmShort(t.end))}" class="tm" placeholder="14:00" title="Konec směny (např. 14:00; 6:00 u noční)"></td>
+      <td><input type="number" data-f="pause" value="${esc(t.pause)}" min="0" step="5" style="width:64px"></td>
+      <td class="net" data-net="${esc(t.id)}">${typeNetHtml(t)}</td>
+      <td><button class="btn sm danger" data-deltype="${esc(t.id)}" title="Odebrat směnu">×</button></td></tr>`).join('');
+  $('#calTypes').innerHTML = `<h3><span class="n">1</span>Směny na pracovišti <span class="muted">– kdy začínají a končí</span></h3>
+    <table class="ctypes"><thead><tr><th></th><th>Název</th><th>Zkratka</th><th>Začátek</th><th>Konec</th><th>Přestávky [min]</th><th>Čistý čas na práci</th><th></th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="8" class="muted">Zatím žádné směny – přidejte je nebo použijte rychlé nastavení.</td></tr>'}</tbody></table>
+    <div class="formrow">
+      <button class="btn sm" data-addtype>+ Přidat směnu</button>
+      <span class="muted">Rychlé nastavení:</span>
+      <button class="btn sm" data-preset="2">2 směny (6–14–22)</button>
+      <button class="btn sm" data-preset="3">3 směny (6–14–22–6)</button>
+      <button class="btn sm" data-preset="12">2 × 12 h (6–18–6)</button>
+    </div>
+    <div class="muted" style="font-size:12px">Konec dřív než začátek (např. 22:00–6:00) = <b>noční směna</b>, končí následující den. Čistý čas = délka směny − přestávky.</div>`;
+}
+function typeNetHtml(t) {
+  return `${fmtNum(typeNet(t))} min${isNight(t) ? `<span class="ntag" title="Noční směna – končí následující den v ${hmShort(t.end)}">noční (+1 den)</span>` : ''}`;
+}
+function renderCalWeek() {
+  const cal = sheet().cal;
+  const head = WEEK_ORDER.map(d => `<th data-wday="${d}" title="Klik = zapnout/vypnout všechny směny v tento den">${DOW[d]}</th>`).join('');
+  const body = cal.types.map(t => `<tr><th><span class="dot" style="background:${esc(t.color)}"></span>${esc(t.name)}<small>${hmShort(t.start)}–${hmShort(t.end)}${isNight(t) ? ' (+1)' : ''}</small></th>` +
+    WEEK_ORDER.map(d => { const on = (cal.pattern[d] || []).includes(t.id);
+      return `<td><button class="wcell${on ? ' on' : ''}" style="--c:${esc(t.color)}" data-wt="${esc(t.id)}" data-wd="${d}" title="${esc(t.name)} – ${DOW[d]}">${on ? esc(t.short || '✓') : '–'}</button></td>`; }).join('') + '</tr>').join('');
+  const caps = WEEK_ORDER.map(d => cal.types.filter(t => (cal.pattern[d] || []).includes(t.id)).reduce((a, t) => a + typeNet(t), 0));
+  const total = caps.reduce((a, b) => a + b, 0);
+  $('#calWeek').innerHTML = `<h3><span class="n">2</span>Běžný týden <span class="muted">– které směny jedou v který den</span></h3>
+    <table class="cweek"><thead><tr><th></th>${head}</tr></thead><tbody>${body}
+    <tr class="sum"><th>Kapacita [min]</th>${caps.map(c => `<td>${c ? fmtNum(c) : '–'}</td>`).join('')}</tr></tbody></table>
+    <div class="muted" style="font-size:12px;margin-top:6px">Týdně ${fmtNum(total)} min (${fmtHM(total)}). Noční směnu zaškrtněte v den, kdy <b>začíná</b> (noční z neděle na pondělí = neděle).
+    Tento vzor se opakuje každý týden; výjimky nastavíte v kalendáři.</div>`;
+}
+function renderCalMonth() {
+  const cal = sheet().cal, now = Date.now(), today = dayKey(new Date());
+  const cur = currentShiftInfo(cal, now);
+  const curKey = cur && cur.current ? dayKey(cur.day) + '|' + cur.t.id : '';
+  const start = calUI.weekStart, WEEKS = 6, end = addDays(start, WEEKS * 7 - 1);
+  const cells = [];
+  for (let i = 0; i < WEEKS * 7; i++) {
+    const d = addDays(start, i), k = dayKey(d), hol = holidayName(d);
+    const ids = dayIds(cal, d), ovr = cal.overrides[k] !== undefined;
+    const cap = cal.types.filter(t => ids.includes(t.id)).reduce((a, t) => a + typeNet(t), 0);
+    const cls = ['cday', d.getDay() === 0 || d.getDay() === 6 ? 'we' : '', hol ? 'hol' : '', k < today ? 'past' : '', k === today ? 'today' : '', ovr ? 'ovr' : ''].filter(Boolean).join(' ');
+    const chips = cal.types.map(t => { const on = ids.includes(t.id), nowc = curKey === k + '|' + t.id;
+      return `<button class="sc${on ? ' on' : ''}${nowc ? ' now' : ''}" style="--c:${esc(t.color)}" data-day="${k}" data-tid="${esc(t.id)}" title="${esc(`${t.name} ${hmShort(t.start)}–${hmShort(t.end)}${on ? ' – jede (klik = zrušit)' : ' – nejede (klik = přidat)'}${nowc ? '\nPRÁVĚ PROBÍHÁ' : ''}`)}">${esc(t.short || t.name)}</button>`; }).join('');
+    cells.push(`<div class="${cls}" title="${ovr ? 'Upraveno ručně (oproti běžnému týdnu)' : ''}">
+      <div class="cdh"><b>${fmtD(d)}</b>${hol ? `<span class="hn" title="${esc(hol)}">${esc(hol)}</span>` : '<span class="sp"></span>'}${ovr ? `<button class="mini" data-reset="${k}" title="Vrátit na běžný týden">↺</button>` : ''}</div>
+      <div class="chips">${chips}</div>
+      <div class="cfoot"><span>${cap ? fmtNum(cap) + ' min' : 'volno'}</span>${ids.length ? `<button class="mini" data-off="${k}" title="Nastavit celý den jako volno">dát volno</button>` : ''}</div></div>`);
+  }
+  const mname = d => d.toLocaleDateString('cs-CZ', { day: 'numeric', month: 'long' });
+  $('#calMonth').innerHTML = `<h3><span class="n">3</span>Kalendář a výjimky <span class="muted">– klik na směnu ji v daný den zapne / vypne (přesčas, dovolená, odstávka)</span></h3>
+    <div class="calnav">
+      <button class="btn sm" data-nav="-4" title="o 4 týdny zpět">◀◀</button><button class="btn sm" data-nav="-1" title="o týden zpět">◀</button>
+      <button class="btn sm" data-nav="0">Dnes</button>
+      <button class="btn sm" data-nav="1" title="o týden dál">▶</button><button class="btn sm" data-nav="4" title="o 4 týdny dál">▶▶</button>
+      <b>${mname(start)} – ${mname(end)} ${end.getFullYear()}</b>
+      <span class="legend"><i style="background:#2f6fca"></i>směna jede<i style="border:1px dashed #b9c3cf;background:#fff"></i>nejede<i style="background:#e3a72f"></i>upraveno ručně<i style="outline:2px solid #111;background:#fff"></i>právě probíhá</span>
+    </div>
+    <div class="cmonth">${WEEK_ORDER.map(d => `<div class="cdow">${DOW[d]}</div>`).join('')}${cells.join('')}</div>`;
+}
+function renderCalTools() {
+  const sh = sheet(), cal = sh.cal;
+  const t0 = dayKey(new Date());
+  const others = data.sheets.filter(s => s.id !== sh.id && s.cal);
+  $('#calTools').innerHTML = `<h3><span class="n">4</span>Hromadné úpravy a další nastavení</h3>
+    <div class="formrow">
+      <span>Období od <input type="date" id="bulkFrom" value="${calUI.from || t0}"> do <input type="date" id="bulkTo" value="${calUI.to || t0}"></span>
+      <span>směny: ${cal.types.map(t => `<button class="sc${calUI.bulk.has(t.id) ? ' on' : ''}" style="--c:${esc(t.color)}" data-bulkt="${esc(t.id)}">${esc(t.short || t.name)}</button>`).join(' ')}</span>
+      <label><input type="checkbox" id="bulkWork"${calUI.bulkWork ? ' checked' : ''}> jen Po–Pá</label>
+      <button class="btn sm primary" data-bulk="set" title="V období nastaví přesně vybrané směny">Nastavit vybrané směny</button>
+      <button class="btn sm" data-bulk="off" title="Celé období volno (dovolená, odstávka)">Nastavit volno</button>
+      <button class="btn sm" data-bulk="reset" title="Zruší ruční úpravy v období">Vrátit na běžný týden</button>
+    </div>
+    <div class="formrow">
+      <label><input type="checkbox" id="skipHol"${cal.skipHolidays ? ' checked' : ''}> Státní svátky jsou volno</label>
+      ${others.length ? `<span>Převzít celý rozpis z pracoviště <select id="copyFrom">${others.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select>
+        <button class="btn sm" data-copycal>Převzít</button></span>` : ''}
+      <span class="muted">Ručních výjimek: ${Object.keys(cal.overrides).length}</span>
+      ${Object.keys(cal.overrides).length ? '<button class="btn sm danger" data-clearovr>Zrušit všechny výjimky</button>' : ''}
+    </div>`;
+}
+function calChanged(parts) {
+  save();
+  if (parts.includes('head')) renderCalHead();
+  if (parts.includes('types')) renderCalTypes();
+  if (parts.includes('week')) renderCalWeek();
+  if (parts.includes('month')) renderCalMonth();
+  if (parts.includes('tools')) renderCalTools();
+}
+async function onCalClick(e) {
+  const sh = sheet(), cal = sh.cal, b = e.target.closest('button');
+  if (!b) return;
+  const ds = b.dataset;
+  if (ds.addtype !== undefined) {
+    const used = new Set(cal.types.map(t => t.color));
+    cal.types.push(newType('Nová směna', 'S' + (cal.types.length + 1), '06:00', '14:00', 30, PALETTE.find(c => !used.has(c)) || PALETTE[cal.types.length % PALETTE.length]));
+    calChanged(['types', 'week', 'month', 'tools']);
+  } else if (ds.deltype) {
+    const t = cal.types.find(x => x.id === ds.deltype);
+    if (!t || !(await askConfirm(`Odebrat směnu „${t.name}“ (${hmShort(t.start)}–${hmShort(t.end)}) z rozpisu?\nZmizí z běžného týdne i z kalendáře.`, { ok: 'Odebrat', danger: true }))) return;
+    cal.types = cal.types.filter(x => x.id !== ds.deltype);
+    for (const d in cal.pattern) cal.pattern[d] = cal.pattern[d].filter(id => id !== ds.deltype);
+    for (const k in cal.overrides) { cal.overrides[k] = cal.overrides[k].filter(id => id !== ds.deltype); cleanOverride(cal, k); }
+    calUI.bulk.delete(ds.deltype);
+    calChanged(['types', 'week', 'month', 'tools']);
+  } else if (ds.preset) {
+    if (cal.types.length && !(await askConfirm('Nahradit současné směny a běžný týden rychlým nastavením?\n(Ruční výjimky v kalendáři se zruší.)', { ok: 'Nahradit' }))) return;
+    cal.types = presetTypes(ds.preset);
+    const ids = cal.types.map(t => t.id);
+    for (let d = 0; d < 7; d++) cal.pattern[d] = d >= 1 && d <= 5 ? ids.slice() : [];
+    cal.overrides = {}; calUI.bulk = new Set();
+    calChanged(['types', 'week', 'month', 'tools']);
+  } else if (ds.wt) {
+    const d = +ds.wd, arr = cal.pattern[d] || (cal.pattern[d] = []);
+    const i = arr.indexOf(ds.wt);
+    if (i >= 0) arr.splice(i, 1); else arr.push(ds.wt);
+    Object.keys(cal.overrides).forEach(k => cleanOverride(cal, k));
+    calChanged(['week', 'month', 'tools']);
+  } else if (ds.day) {
+    const k = ds.day, ids = dayIds(cal, keyToDate(k)).slice();
+    const i = ids.indexOf(ds.tid);
+    if (i >= 0) ids.splice(i, 1); else ids.push(ds.tid);
+    cal.overrides[k] = ids; cleanOverride(cal, k);
+    calChanged(['month', 'tools']);
+  } else if (ds.off) {
+    cal.overrides[ds.off] = []; cleanOverride(cal, ds.off); calChanged(['month', 'tools']);
+  } else if (ds.reset) {
+    delete cal.overrides[ds.reset]; calChanged(['month', 'tools']);
+  } else if (ds.nav !== undefined) {
+    const n = +ds.nav;
+    calUI.weekStart = n === 0 ? mondayOf(new Date()) : addDays(calUI.weekStart, n * 7);
+    renderCalMonth();
+  } else if (ds.bulkt) {
+    if (calUI.bulk.has(ds.bulkt)) calUI.bulk.delete(ds.bulkt); else calUI.bulk.add(ds.bulkt);
+    renderCalTools();
+  } else if (ds.bulk) {
+    const from = $('#bulkFrom').value, to = $('#bulkTo').value;
+    calUI.from = from; calUI.to = to;
+    if (!from || !to || to < from) { toast('Zadejte platné období (od – do).'); return; }
+    if (ds.bulk === 'set' && !calUI.bulk.size && !(await askConfirm('Nevybrali jste žádnou směnu – období bude volno. Pokračovat?'))) return;
+    let n = 0;
+    for (let d = keyToDate(from); dayKey(d) <= to; d = addDays(d, 1)) {
+      if (calUI.bulkWork && (d.getDay() === 0 || d.getDay() === 6)) continue;
+      const k = dayKey(d);
+      if (ds.bulk === 'reset') delete cal.overrides[k];
+      else { cal.overrides[k] = ds.bulk === 'off' ? [] : cal.types.filter(t => calUI.bulk.has(t.id)).map(t => t.id); cleanOverride(cal, k); }
+      n++;
+      if (n > 3700) break;
+    }
+    calUI.weekStart = mondayOf(keyToDate(from));
+    calChanged(['month', 'tools']);
+    toast(`Upraveno dní: ${n}.`);
+  } else if (ds.copycal !== undefined) {
+    const src = data.sheets.find(s => s.id === $('#copyFrom').value);
+    if (!src || !src.cal) return;
+    if (!(await askConfirm(`Převzít rozpis směn z pracoviště „${src.name}“?\nSoučasný rozpis tohoto pracoviště bude nahrazen.`, { ok: 'Převzít' }))) return;
+    const copy = normalizeCal(JSON.parse(JSON.stringify(src.cal)));
+    copy.enabled = cal.enabled;
+    sh.cal = copy; calUI.bulk = new Set();
+    calChanged(['head', 'types', 'week', 'month', 'tools']);
+    toast('Rozpis převzat.');
+  } else if (ds.clearovr !== undefined) {
+    if (!(await askConfirm('Zrušit všechny ruční výjimky v kalendáři?', { ok: 'Zrušit výjimky', danger: true }))) return;
+    cal.overrides = {}; calChanged(['month', 'tools']);
+  }
+}
+function onCalInput(e) {
+  const cal = sheet().cal, inp = e.target, tr = inp.closest('tr[data-tid]');
+  if (!tr || !inp.dataset.f) return;
+  const t = cal.types.find(x => x.id === tr.dataset.tid); if (!t) return;
+  const f = inp.dataset.f;
+  if (f === 'name' || f === 'short' || f === 'color') {
+    t[f] = f === 'color' ? inp.value : inp.value.trim() || (f === 'name' ? 'Směna' : '');
+    calChanged(['week', 'month', 'tools']);
+  }
+}
+function onCalChange(e) {
+  const sh = sheet(), cal = sh.cal, inp = e.target;
+  if (inp.id === 'calEnabled') { cal.enabled = inp.checked; calChanged(['head']); return; }
+  if (inp.id === 'skipHol') {
+    cal.skipHolidays = inp.checked;
+    Object.keys(cal.overrides).forEach(k => cleanOverride(cal, k));
+    calChanged(['month', 'tools']); return;
+  }
+  if (inp.id === 'bulkWork') { calUI.bulkWork = inp.checked; return; }
+  if (inp.id === 'bulkFrom' || inp.id === 'bulkTo') { calUI[inp.id === 'bulkFrom' ? 'from' : 'to'] = inp.value; return; }
+  const tr = inp.closest('tr[data-tid]');
+  if (!tr || !inp.dataset.f) return;
+  const t = cal.types.find(x => x.id === tr.dataset.tid); if (!t) return;
+  const f = inp.dataset.f;
+  if (f === 'start' || f === 'end') {
+    const v = parseHM(inp.value);
+    if (v == null) { toast('Zadejte čas ve tvaru např. 6:00 nebo 22:30.'); inp.value = hmShort(t[f]); return; }
+    t[f] = v; inp.value = hmShort(v);
+  }
+  else if (f === 'pause') { const n = parseNum(inp.value); t.pause = n >= 0 ? n : 0; inp.value = t.pause; }
+  else return;
+  const net = document.querySelector(`[data-net="${CSS.escape(t.id)}"]`);
+  if (net) net.innerHTML = typeNetHtml(t);
+  calChanged(['week', 'month']);
+}
+
+/* =====================================================================
+   IMPORT Z EXCELU / SAP
+   ===================================================================== */
+async function unzip(buf) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf);
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('Soubor není platný .xlsx (ZIP).');
+  const n = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const files = {}, td = new TextDecoder();
+  for (let k = 0; k < n; k++) {
+    if (dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true), csize = dv.getUint32(off + 20, true);
+    const nl = dv.getUint16(off + 28, true), el = dv.getUint16(off + 30, true), cl = dv.getUint16(off + 32, true), lho = dv.getUint32(off + 42, true);
+    const name = td.decode(u8.subarray(off + 46, off + 46 + nl));
+    files[name.toLowerCase()] = { method, csize, lho };
+    off += 46 + nl + el + cl;
+  }
+  return {
+    has: name => !!files[name.toLowerCase()],
+    async text(name) {
+      const f = files[name.toLowerCase()];
+      if (!f) return null;
+      const start = f.lho + 30 + dv.getUint16(f.lho + 26, true) + dv.getUint16(f.lho + 28, true);
+      const raw = u8.subarray(start, start + f.csize);
+      let out;
+      if (f.method === 0) out = raw;
+      else if (f.method === 8) {
+        if (typeof DecompressionStream === 'undefined') throw new Error('Tento prohlížeč neumí rozbalit .xlsx – použijte aktuální Chrome / Edge, nebo data zkopírujte.');
+        out = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+      } else throw new Error('Nepodporovaná komprese v .xlsx.');
+      return new TextDecoder('utf-8').decode(out);
+    },
+  };
+}
+function xmlDoc(s) { return new DOMParser().parseFromString(s, 'application/xml'); }
+function byTag(el, tag) { return Array.from(el.getElementsByTagName(tag)); }
+function colIndex(ref) { const m = /^([A-Z]+)/.exec(ref || ''); if (!m) return -1; let n = 0; for (const ch of m[1]) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; }
+async function readXlsx(buf) {
+  const z = await unzip(buf);
+  const wbx = await z.text('xl/workbook.xml');
+  if (!wbx) throw new Error('V souboru chybí sešit (xl/workbook.xml).');
+  const wb = xmlDoc(wbx);
+  const relsX = await z.text('xl/_rels/workbook.xml.rels');
+  const rels = {};
+  if (relsX) byTag(xmlDoc(relsX), 'Relationship').forEach(r => { rels[r.getAttribute('Id')] = r.getAttribute('Target'); });
+  const sst = [];
+  const sstX = await z.text('xl/sharedStrings.xml');
+  if (sstX) byTag(xmlDoc(sstX), 'si').forEach(si => {
+    sst.push(byTag(si, 't').filter(t => t.parentNode === si || t.parentNode.localName === 'r').map(t => t.textContent).join(''));
+  });
+  const out = [];
+  const sheetEls = byTag(wb, 'sheet');
+  for (let i = 0; i < sheetEls.length; i++) {
+    const s = sheetEls[i];
+    const rid = s.getAttribute('r:id') || s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+    let target = rels[rid] || `worksheets/sheet${i + 1}.xml`;
+    target = target.startsWith('/') ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '');
+    const sx = await z.text(target);
+    if (!sx) continue;
+    const doc = xmlDoc(sx), rows = [];
+    byTag(doc, 'row').forEach((rowEl, ri) => {
+      const rIdx = rowEl.getAttribute('r') ? +rowEl.getAttribute('r') - 1 : ri;
+      const arr = [];
+      let ci = 0;
+      for (const c of rowEl.children) {
+        if (c.localName !== 'c') continue;
+        const ix = colIndex(c.getAttribute('r'));
+        if (ix >= 0) ci = ix;
+        const t = c.getAttribute('t'), vEl = c.getElementsByTagName('v')[0], v = vEl ? vEl.textContent : null;
+        let val = '';
+        if (t === 's') val = v != null ? (sst[+v] ?? '') : '';
+        else if (t === 'inlineStr') val = byTag(c, 't').map(x => x.textContent).join('');
+        else if (t === 'b') val = v === '1' ? 'TRUE' : 'FALSE';
+        else if (t === 'str' || t === 'e') val = v ?? '';
+        else if (v != null && v !== '') { const n = parseFloat(v); val = isFinite(n) ? n : v; }
+        arr[ci] = val;
+        ci++;
+      }
+      rows[rIdx] = arr;
+    });
+    out.push({ name: s.getAttribute('name') || `List ${i + 1}`, rows: tidyRows(rows) });
+  }
+  if (!out.length) throw new Error('V sešitu nejsou žádné listy s daty.');
+  return out;
+}
+function tidyRows(rows) {
+  const res = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const a = [];
+    for (let j = 0; j < r.length; j++) a.push(r[j] == null ? '' : r[j]);
+    res.push(a);
+  }
+  while (res.length && res[res.length - 1].every(v => v === '' || v == null)) res.pop();
+  const w = res.reduce((m, r) => Math.max(m, r.length), 0);
+  res.forEach(r => { while (r.length < w) r.push(''); });
+  return res;
+}
+function decodeText(buf) {
+  const u8 = new Uint8Array(buf);
+  if (u8[0] === 0xFF && u8[1] === 0xFE) return new TextDecoder('utf-16le').decode(u8.subarray(2));
+  if (u8[0] === 0xFE && u8[1] === 0xFF) return new TextDecoder('utf-16be').decode(u8.subarray(2));
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(u8).replace(/^﻿/, ''); }
+  catch { return new TextDecoder('windows-1250').decode(u8); }
+}
+function parseHtmlTable(text) {
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  const tbl = doc.querySelector('table');
+  if (!tbl) return null;
+  return tidyRows(Array.from(tbl.rows).map(tr => Array.from(tr.cells).map(td => td.textContent.replace(/\s+/g, ' ').trim())));
+}
+function parseTextAuto(text) {
+  text = String(text || '').replace(/^﻿/, '');
+  if (/^\s*<(!doctype|html|table|meta)/i.test(text)) { const h = parseHtmlTable(text); if (h) return h; }
+  const lines = text.replace(/\r\n?/g, '\n').split('\n').filter(l => l.trim() && !/^[\s\-=+_]*$/.test(l)).slice(0, 30);
+  const cands = ['\t', ';', '|', ','];
+  let best = '\t', bestScore = 0;
+  for (const d of cands) {
+    const counts = lines.map(l => l.split(d).length - 1);
+    const withD = counts.filter(c => c > 0).length;
+    if (withD < Math.max(1, lines.length * 0.5)) continue;
+    const score = withD * 1000 + counts.reduce((a, b) => a + b, 0);
+    if (score > bestScore) { bestScore = score; best = d; }
+  }
+  let rows;
+  if (best === '|') {
+    rows = text.replace(/\r\n?/g, '\n').split('\n')
+      .filter(l => l.trim() && !/^[\s\-|=+_]*$/.test(l))
+      .map(l => { const p = l.split('|'); if (p.length && !p[0].trim()) p.shift(); if (p.length && !p[p.length - 1].trim()) p.pop(); return p; });
+  } else rows = parseDelimited(text, best);
+  return tidyRows(rows.map(r => r.map(c => String(c).trim())));
+}
+
+/* ---------- přiřazení sloupců ---------- */
+function loadImportMemory() { const m = safeParse(lsGet(KEY_IMPORT[ui.module])); return m && typeof m === 'object' && m.headers ? m : { headers: {} }; }
+const impFields = () => ui.module === 'm1' ? M1_IMPORT_FIELDS : IMPORT_FIELDS;
+const impKeyFields = () => ui.module === 'm1' ? ['artikl'] : ['zakazka', 'artikl'];
+function guessField(h) { return ui.module === 'm1' ? m1Guess(h) : m2Guess(h); }
+function headerKey(h) { return normText(String(h ?? '')).replace(/\s+/g, ' ').trim(); }
+function m2Guess(h) {
+  const s = headerKey(h);
+  if (!s) return '';
+  if (/priprav|seriz|setup|rust|prestav/.test(s)) return 'priprava';
+  if (/(cas|doba|time|zeit).*(ks|kus|jedn|pc|stk)|na kus|\/ ?ks|takt|cycle|kusov|jednotkov/.test(s)) return 'casKs';
+  if (/zakaz|order|auftrag|prikaz|^vp\b|^fa\b|fertigungsauf/.test(s)) return 'zakazka';
+  if (/artik|materi|^mat\b|polozk|vyrobek|cislo dilu|dil\b|part|item|sachnummer/.test(s)) return 'artikl';
+  if (/pocet|mnozstv|^ks\b|kusy|\bks\b|qty|quantity|menge|davk|ks$/.test(s)) return 'ks';
+  return '';
+}
+function guessUnit(h) {
+  const s = headerKey(h);
+  if (/\[s\]|\(s\)|sek|\bs\b|sec/.test(s)) return 's';
+  if (/\[h\]|\(h\)|hod|hour|std/.test(s)) return 'h';
+  return 'min';
+}
+const imp = { sheets: null, sheetIdx: 0, rows: [], headerRow: 0, map: [], units: [], fileName: '' };
+
+function openImport(file) {
+  const sh = sheet();
+  openModal('Import dat z Excelu / SAP', `
+    <div class="impsrc">
+      <div class="drop" id="impDrop">
+        <div><b>Přetáhněte sem soubor</b> z Excelu nebo SAPu</div>
+        <div><button class="btn primary" id="impPick">Vybrat soubor…</button></div>
+        <div class="muted" style="font-size:12px">.xlsx · .xlsm · .csv · .txt (SAP export) · SAP „.xls“ uložené jako text/HTML</div>
+        <div id="impFileName" style="font-weight:600"></div>
+        <input type="file" id="impFile" accept=".xlsx,.xlsm,.csv,.txt,.tsv,.xls,.htm,.html" hidden>
+      </div>
+      <div>
+        <div><b>…nebo vložte zkopírovaná data</b> <span class="muted">(Ctrl+V – třeba i se záhlavím)</span></div>
+        <textarea id="impText" rows="5" placeholder="Sem vložte data z Excelu / SAPu…"></textarea>
+      </div>
+    </div>
+    <div id="impMsg"></div>
+    <div id="impOpts" hidden>
+      <div class="formrow">
+        <label id="impSheetL">List v sešitu: <select id="impSheet"></select></label>
+        <label>Názvy sloupců jsou na řádku: <input type="number" id="impHead" min="0" style="width:64px"></label>
+        <button class="btn sm" data-imphead="0" title="Data začínají hned prvním řádkem, bez názvů sloupců">Data nemají záhlaví</button>
+      </div>
+      <ol class="impsteps">
+        <li><b>Řádek se záhlavím:</b> klikněte v náhledu na <b>číslo řádku</b>, kde jsou názvy sloupců (zvýrazní se žlutě). Řádky nad ním se neimportují.</li>
+        <li><b>Sloupce:</b> nad každým sloupcem vyberte, kam data patří; nepotřebné nechte „— nepoužít —“. Přiřazení si aplikace zapamatuje.</li>
+        <li><b>Řádky:</b> zaškrtnuté řádky se naimportují – odškrtněte ty, které nechcete (<kbd>Shift</kbd>+klik = celý rozsah).</li>
+      </ol>
+      <div class="formrow">
+        <button class="btn sm" data-impsel="all">Zaškrtnout všechny řádky</button>
+        <button class="btn sm" data-impsel="none">Odškrtnout všechny</button>
+        <button class="btn sm" data-impsel="auto" title="Zruší ruční zaškrtnutí a použije automatický výběr">Obnovit automatický výběr</button>
+        <label><input type="checkbox" id="impSkip" checked> automaticky odškrtnout řádky bez ${ui.module === 'm1' ? 'artiklu' : 'čísla zakázky i artiklu'} (součty, prázdné řádky)</label>
+      </div>
+      <div class="impwrap"><table class="imptbl" id="impTbl"></table></div>
+      <div class="formrow">
+        <label><input type="radio" name="impMode" value="append" checked> Přidat na konec pracoviště „${esc(sh.name)}“</label>
+        <label><input type="radio" name="impMode" value="replace"> Nahradit všechny řádky pracoviště (${sh.rows.length})</label>
+      </div>
+      <div id="impInfo" class="iinfo"></div>
+    </div>`,
+    [{ label: 'Zrušit' }, { label: 'Importovat', primary: true, id: 'impGo', onClick: doImport }],
+    { wide: true, kind: 'import' });
+  Object.assign(imp, { sheets: null, sheetIdx: 0, rows: [], headerRow: 0, map: [], units: [], fileName: '', excluded: new Set(), forced: new Set(), lastClick: null });
+  const drop = $('#impDrop');
+  $('#impPick').onclick = () => $('#impFile').click();
+  $('#impFile').onchange = e => { const f = e.target.files[0]; if (f) loadImportFile(f); };
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) loadImportFile(f); });
+  let tT;
+  $('#impText').addEventListener('input', e => {
+    clearTimeout(tT);
+    tT = setTimeout(() => {
+      const v = e.target.value;
+      if (!v.trim()) return;
+      imp.fileName = ''; $('#impFileName').textContent = '';
+      imp.sheets = [{ name: 'Vložená data', rows: parseTextAuto(v) }];
+      setImportSheet(0);
+    }, 150);
+  });
+  $('#impSheet').onchange = e => setImportSheet(+e.target.value);
+  $('#impHead').onchange = e => setHeaderRow(parseInt(e.target.value, 10) || 0);
+  $('#impSkip').onchange = renderImport;
+  $('#impOpts').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.imphead !== undefined) { setHeaderRow(0); return; }
+    const m = b.dataset.impsel; if (!m) return;
+    if (m === 'auto') { imp.excluded.clear(); imp.forced.clear(); }
+    else for (let i = imp.headerRow; i < imp.rows.length; i++) impSet(i, m === 'all');
+    refreshImpChecks(); renderImportInfo();
+  });
+  $('#impTbl').addEventListener('click', e => {
+    const t = e.target;
+    const hp = t.closest('[data-hrow]');
+    if (hp) { setHeaderRow(+hp.dataset.hrow); return; }
+    if (t.id === 'impAll') {
+      for (let i = imp.headerRow; i < imp.rows.length; i++) impSet(i, t.checked);
+      refreshImpChecks(); renderImportInfo(); return;
+    }
+    if (t.matches('input[data-ri]')) {
+      const i = +t.dataset.ri, val = t.checked;
+      if (e.shiftKey && imp.lastClick != null) {
+        const a = Math.max(imp.headerRow, Math.min(i, imp.lastClick)), b = Math.max(i, imp.lastClick);
+        for (let k = a; k <= b; k++) impSet(k, val);
+      } else impSet(i, val);
+      imp.lastClick = i;
+      refreshImpChecks(); renderImportInfo();
+    }
+  });
+  $('#impTbl').addEventListener('change', e => {
+    const s = e.target;
+    if (s.dataset.map !== undefined) {
+      const j = +s.dataset.map, v = s.value;
+      if (v) imp.map.forEach((m, k) => { if (k !== j && m === v) imp.map[k] = ''; });   // každé pole jen jednou
+      imp.map[j] = v;
+      renderImport();
+    } else if (s.dataset.unit !== undefined) { imp.units[+s.dataset.unit] = s.value; renderImportInfo(); }
+  });
+  updateImpGo();
+  if (file) loadImportFile(file);
+}
+function impMsg(html, bad) { const m = $('#impMsg'); if (m) m.innerHTML = html ? `<div class="iinfo${bad ? ' bad' : ''}">${html}</div>` : ''; }
+async function loadImportFile(file) {
+  imp.fileName = file.name;
+  $('#impFileName').textContent = file.name;
+  impMsg('Načítám soubor…');
+  try {
+    const buf = await file.arrayBuffer();
+    const u8 = new Uint8Array(buf.slice(0, 8));
+    const isZip = u8[0] === 0x50 && u8[1] === 0x4B;
+    const isOle = u8[0] === 0xD0 && u8[1] === 0xCF && u8[2] === 0x11 && u8[3] === 0xE0;
+    if (isOle) {
+      impMsg('Starý formát Excelu <b>.xls (97–2003)</b> neumím přečíst. V Excelu ho prosím uložte jako <b>.xlsx</b> (Soubor → Uložit jako), nebo data zkopírujte a vložte do pole vpravo.', true);
+      return;
+    }
+    imp.sheets = isZip ? await readXlsx(buf) : [{ name: file.name, rows: parseTextAuto(decodeText(buf)) }];
+    impMsg('');
+    $('#impText').value = '';
+    const first = Math.max(0, imp.sheets.findIndex(s => s.rows.length));
+    setImportSheet(first);
+  } catch (err) {
+    impMsg('Soubor se nepodařilo načíst: ' + esc(err.message || err), true);
+  }
+}
+function setImportSheet(i) {
+  imp.sheetIdx = i;
+  imp.rows = (imp.sheets[i] && imp.sheets[i].rows) || [];
+  $('#impOpts').hidden = false;
+  const sl = $('#impSheet');
+  sl.innerHTML = imp.sheets.map((s, k) => `<option value="${k}">${esc(s.name)} (${s.rows.length} ř.)</option>`).join('');
+  sl.value = String(i);
+  $('#impSheetL').hidden = imp.sheets.length < 2;
+  imp.excluded = new Set(); imp.forced = new Set(); imp.lastClick = null;
+  imp.headerRow = detectHeader(imp.rows);
+  $('#impHead').value = imp.headerRow;
+  autoMap(); renderImport();
+}
+function detectHeader(rows) {
+  const mem = loadImportMemory().headers;
+  let best = 0, bestScore = 0;
+  for (let i = 0; i < Math.min(rows.length, 25); i++) {
+    const r = rows[i];
+    const score = r.filter(v => typeof v === 'string' && v.trim() && (guessField(v) || (mem[headerKey(v)] && mem[headerKey(v)].f))).length;
+    if (score > bestScore) { bestScore = score; best = i + 1; }
+  }
+  if (bestScore >= 1) return best;
+  // bez rozpoznaných názvů: 1. řádek je záhlaví, pokud je textový a 2. řádek obsahuje čísla
+  if (rows.length > 1) {
+    const r0 = rows[0], r1 = rows[1];
+    const isN = v => isNum(v) || (String(v ?? '').trim() !== '' && !isNaN(parseNum(v)));
+    const numCols = r1.map((v, j) => isN(v) ? j : -1).filter(j => j >= 0);
+    // záhlaví = tam, kde jsou ve 2. řádku čísla, je v 1. řádku text
+    if (numCols.length && numCols.every(j => String(r0[j] ?? '').trim() !== '' && !isN(r0[j]))) return 1;
+  }
+  return 0;
+}
+function autoMap() {
+  const w = imp.rows.reduce((m, r) => Math.max(m, r.length), 0);
+  const mem = loadImportMemory().headers;
+  const hdr = imp.headerRow > 0 ? imp.rows[imp.headerRow - 1] || [] : [];
+  imp.map = new Array(w).fill(''); imp.units = new Array(w).fill('min');
+  const used = new Set();
+  if (imp.headerRow > 0) {
+    for (let j = 0; j < w; j++) {
+      const k = headerKey(hdr[j]);
+      if (!k) continue;
+      const m = mem[k];
+      let f = m ? m.f : guessField(hdr[j]);
+      if (f && used.has(f)) f = '';
+      imp.map[j] = f || '';
+      if (f) used.add(f);
+      imp.units[j] = (m && m.u) || guessUnit(hdr[j]);
+    }
+  }
+  if (!used.size) impFields().forEach((f, j) => { if (j < w) imp.map[j] = f.key; });   // bez záhlaví: pořadí jako v tabulce
+}
+const IMP_LIMIT = 3000;
+function setHeaderRow(n) {
+  imp.headerRow = clamp(n, 0, imp.rows.length);
+  const hi = $('#impHead'); if (hi) hi.value = imp.headerRow;
+  imp.lastClick = null;
+  autoMap(); renderImport();
+}
+const impAuto = i => !rowSkipped(imp.rows[i] || []);
+const impChecked = i => i >= imp.headerRow && (impAuto(i) ? !imp.excluded.has(i) : imp.forced.has(i));
+function impSet(i, val) {
+  if (i < imp.headerRow) return;
+  if (impAuto(i)) { if (val) imp.excluded.delete(i); else imp.excluded.add(i); }
+  else { if (val) imp.forced.add(i); else imp.forced.delete(i); }
+}
+function refreshImpChecks() {
+  let on = 0, all = 0;
+  document.querySelectorAll('#impTbl input[data-ri]').forEach(cb => {
+    const c = impChecked(+cb.dataset.ri);
+    cb.checked = c; cb.closest('tr').classList.toggle('off', !c);
+  });
+  for (let i = imp.headerRow; i < imp.rows.length; i++) { all++; if (impChecked(i)) on++; }
+  const a = $('#impAll');
+  if (a) { a.checked = all > 0 && on === all; a.indeterminate = on > 0 && on < all; }
+}
+function renderImport() {
+  const tbl = $('#impTbl'); if (!tbl) return;
+  const w = imp.map.length, hr = imp.headerRow - 1;
+  const hdr = imp.headerRow > 0 ? imp.rows[hr] || [] : [];
+  const opt = (v, l, cur) => `<option value="${v}"${cur === v ? ' selected' : ''}>${l}</option>`;
+  let h = '<thead><tr><th class="ck"><input type="checkbox" id="impAll" title="Zaškrtnout / odškrtnout všechny řádky"></th><th class="rn">#</th>';
+  for (let j = 0; j < w; j++) {
+    const f = imp.map[j], fd = impFields().find(x => x.key === f);
+    h += `<th class="${f ? 'mapped' : ''}"><select data-map="${j}">${opt('', '— nepoužít —', f)}${impFields().map(x => opt(x.key, x.label, f)).join('')}</select>` +
+      (fd && fd.time ? `<select data-unit="${j}" title="V jakých jednotkách je čas ve zdroji">${Object.entries(UNITS).map(([k, u]) => opt(k, 'v ' + u.label, imp.units[j])).join('')}</select>` : '') +
+      `<div class="hname" title="${esc(hdr[j] ?? '')}">${hdr.length ? esc(hdr[j] ?? '') || '<span class="muted">(bez názvu)</span>' : `<span class="muted">sloupec ${j + 1}</span>`}</div></th>`;
+  }
+  h += '</tr></thead><tbody>';
+  const N = Math.min(imp.rows.length, IMP_LIMIT), parts = [];
+  for (let i = 0; i < N; i++) {
+    const r = imp.rows[i];
+    let cls, ck, rn;
+    if (i < hr) { cls = 'above'; ck = ''; }
+    else if (i === hr) { cls = 'hdrrow'; ck = '<span class="htag">záhlaví</span>'; }
+    else { const c = impChecked(i); cls = c ? '' : 'off'; ck = `<input type="checkbox" data-ri="${i}"${c ? ' checked' : ''}>`; }
+    rn = i === hr ? `<td class="rn">${i + 1}</td>` : `<td class="rn hpick" data-hrow="${i + 1}" title="Klik = na tomto řádku jsou názvy sloupců">${i + 1}</td>`;
+    let row = `<tr class="${cls}"><td class="ck">${ck}</td>${rn}`;
+    for (let j = 0; j < w; j++) {
+      const v = r[j];
+      const isDateCol = i > hr && imp.map[j] && (cols().find(c => c.key === imp.map[j]) || {}).type === 'date';
+      const shown = isDateCol && isNum(v) && v > 20000 && v < 80000 ? excelSerialDate(v) : isNum(v) ? fmtNum(round3(v)) : v ?? '';
+      row += `<td class="${imp.map[j] ? 'mapped' : ''}">${esc(shown)}</td>`;
+    }
+    parts.push(row + '</tr>');
+  }
+  if (imp.rows.length > N) parts.push(`<tr><td class="ck"></td><td class="rn"></td><td colspan="${w}" class="muted">Zobrazeno prvních ${N} řádků – dalších ${imp.rows.length - N} se naimportuje podle automatického výběru.</td></tr>`);
+  tbl.innerHTML = h + parts.join('') + '</tbody>';
+  refreshImpChecks();
+  renderImportInfo();
+}
+function rowSkipped(r) {
+  const used = imp.map.map((f, j) => f ? j : -1).filter(j => j >= 0);
+  if (!used.length) return true;
+  if (used.every(j => String(r[j] ?? '').trim() === '')) return true;
+  const skip = $('#impSkip') ? $('#impSkip').checked : true;
+  if (skip) {
+    const kj = impKeyFields().map(f => imp.map.indexOf(f)).filter(j => j >= 0);
+    if (kj.length && kj.every(j => String(r[j] ?? '').trim() === '')) return true;
+  }
+  return false;
+}
+function impValue(field, v, unit) {
+  const col = cols().find(c => c.key === field) || { type: 'text' };
+  if (col.type === 'status') return parseStatus(v);
+  if (col.type === 'date') return isNum(v) && v > 20000 && v < 80000 ? excelSerialDate(v) : normDate(v);
+  if (col.type === 'text') return isNum(v) ? (field === 'cas' ? copyNum(v) : String(Number(v.toFixed(6)))) : String(v ?? '').trim();
+  const fd = impFields().find(f => f.key === field), time = !!(fd && fd.time);
+  let n;
+  if (isNum(v)) n = v;
+  else {
+    const s = String(v ?? '').trim();
+    if (!s) return '';
+    const hm = time && s.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/);
+    if (hm) return round3((+hm[1]) * 60 + (+hm[2]) + (+(hm[3] || 0)) / 60);
+    n = parseNum(s);
+    if (isNaN(n)) return s;
+  }
+  if (time) return round3(n * (UNITS[unit] || UNITS.min).f);
+  return round3(n);
+}
+function buildImportRows() {
+  const out = [];
+  for (let i = imp.headerRow; i < imp.rows.length; i++) {
+    if (!impChecked(i)) continue;
+    const r = imp.rows[i];
+    const row = newRow();
+    imp.map.forEach((f, j) => { if (f) row[f] = impValue(f, r[j], imp.units[j]); });
+    out.push(row);
+  }
+  return out;
+}
+function renderImportInfo() {
+  const info = $('#impInfo'); if (!info) return;
+  const mapped = impFields().filter(f => imp.map.includes(f.key));
+  const missing = impFields().filter(f => !imp.map.includes(f.key));
+  const rows = buildImportRows();
+  let extra;
+  if (ui.module === 'm1') {
+    const ok = rows.filter(r => r.mat === 'OK').length, nok = rows.filter(r => r.mat === 'NOK').length;
+    extra = imp.map.includes('mat') ? `materiál OK: <b>${ok}</b> · NOK: <b>${nok}</b> · nevyplněno: ${rows.length - ok - nok}` : 'stav materiálu se nastaví ručně';
+  } else {
+    const T = round3(rows.reduce((a, r) => { const t = orderTotal(r); return a + (t === '' ? 0 : t); }, 0));
+    extra = `celkový čas <b>${fmtNum(T)} min</b> (${fmtHM(T)})`;
+  }
+  if (!mapped.length) { info.className = 'iinfo bad'; info.innerHTML = 'Není přiřazen žádný sloupec – vyberte nad sloupci, kam data patří.'; }
+  else {
+    info.className = 'iinfo';
+    const total = Math.max(0, imp.rows.length - imp.headerRow);
+    info.innerHTML = `Vybráno k importu <b>${rows.length}</b> z ${total} ${plural(total, 'řádku', 'řádků', 'řádků')} · ${extra}.` +
+      (missing.length ? ` <span class="muted">Nepřiřazeno: ${missing.map(f => f.label).join(', ')} – zůstane prázdné, lze doplnit ručně.</span>` : '');
+  }
+  updateImpGo(rows.length);
+}
+function updateImpGo(n = 0) { const b = $('#impGo'); if (b) { b.disabled = !n; b.textContent = n ? `Importovat ${n} ${plural(n, 'řádek', 'řádky', 'řádků')}` : 'Importovat'; } }
+async function doImport() {
+  const rows = buildImportRows();
+  if (!rows.length) { toast('Není co importovat.'); return false; }
+  const sh = sheet();
+  const replace = document.querySelector('input[name="impMode"]:checked').value === 'replace';
+  if (replace && sh.rows.length && !(await askConfirm(`Nahradit všech ${sh.rows.length} řádků pracoviště „${sh.name}“?\n(Lze vrátit tlačítkem Zpět)`, { ok: 'Nahradit', danger: true }))) return false;
+  // zapamatovat přiřazení podle názvů sloupců
+  if (imp.headerRow > 0) {
+    const mem = loadImportMemory(), hdr = imp.rows[imp.headerRow - 1] || [];
+    imp.map.forEach((f, j) => { const k = headerKey(hdr[j]); if (k) mem.headers[k] = { f, u: imp.units[j] }; });
+    try { localStorage.setItem(KEY_IMPORT[ui.module], JSON.stringify(mem)); } catch {}
+  }
+  pushUndo();
+  if (replace) sh.rows = [];
+  const firstId = rows[0].id;
+  sh.rows.push(...rows);
+  save(); recomputeView(); renderBody(); updatePanel();
+  const vr = Math.max(0, viewIds.indexOf(firstId));
+  setSel(vr, 0); scrollCell(vr, 0);
+  toast(`${replace ? 'Pracoviště nahrazeno: ' : 'Importováno '}${rows.length} ${plural(rows.length, 'řádek', 'řádky', 'řádků')}.`);
+}
+
+/* ---------- nápověda ---------- */
+function openHelp() {
+  openModal('Nápověda', `<div class="help">
+  <h3>Práce s tabulkou (jako v Excelu)</h3>
+  <table>
+    <tr><td>Klik</td><td>vybere buňku · <b>druhý klik</b> na vybranou buňku, <b>dvojklik</b>, <kbd>Enter</kbd> nebo <kbd>F2</kbd> = úprava</td></tr>
+    <tr><td>Psaní</td><td>na vybrané buňce rovnou přepíše obsah</td></tr>
+    <tr><td><kbd>Enter</kbd> / <kbd>Tab</kbd></td><td>potvrdí a posune dolů / doprava · <kbd>Esc</kbd> zruší úpravu</td></tr>
+    <tr><td>Výběr oblasti</td><td>tažení myší, <kbd>Shift</kbd>+klik, <kbd>Shift</kbd>+šipky · klik na <b>číslo řádku</b> = celý řádek · klik na <b>název sloupce</b> = celý sloupec · <kbd>Ctrl</kbd>+<kbd>A</kbd> = vše</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>X</kbd></td><td>zkopíruje / vystřihne výběr (vkládá se do Excelu i SAPu, desetinná čárka)</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>vloží data ze SAPu / Excelu od vybrané buňky; chybějící řádky se doplní automaticky</td></tr>
+    <tr><td><kbd>Delete</kbd></td><td>smaže obsah vybraných buněk</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></td><td>zpět / znovu (pro každé pracoviště zvlášť, dokud stránku nezavřete)</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd></td><td>posune vybrané řádky = změní pořadí výroby (jen bez aktivního řazení)</td></tr>
+    <tr><td>Pravé tlačítko myši</td><td>na buňkách / číslech řádků: kopírovat, vložit, <b>vložit řádek nad / pod, odstranit řádky</b>, vymazat obsah, odstranit všechny prázdné řádky (v modulu 1 i OK / NOK).
+      Na názvu sloupce: řazení, výběr / kopírování sloupce, šířky sloupců.</td></tr>
+    <tr><td>Šířka sloupce</td><td>táhněte za pravý okraj názvu sloupce · dvojklik na okraj = podle obsahu · obnovit výchozí: pravé tlačítko na názvu sloupce. Šířky si každý modul pamatuje.</td></tr>
+  </table>
+  <h3>Import z Excelu / SAP</h3>
+  <p>Tlačítko <b>Import z Excelu / SAP…</b> nebo přetažení souboru do okna. Umí .xlsx, .csv, .txt (i SAP export s oddělovači | ) a SAP „.xls“ uložené jako text.
+  V náhledu kliknete na číslo řádku, kde jsou názvy sloupců (např. 3. řádek u exportu ze SAPu), zaškrtnutím vyberete řádky k importu
+  (Shift+klik = rozsah) a nad každým sloupcem zvolíte, kam patří, a u časů i jednotku (minuty / sekundy / hodiny / Excel čas). Aplikace si přiřazení pamatuje podle názvu sloupce,
+  takže příště se nastaví samo (každý modul si pamatuje svá přiřazení). Starý binární .xls (97–2003) je třeba v Excelu uložit jako .xlsx.
+  V modulu Materiál a expedice se při importu rozpozná OK / NOK / ano / ne / 1 / 0 a data z Excelu se převedou na DD.MM.RRRR.</p>
+  <h3>Materiál a expedice</h3>
+  <p>Klik na štítek ve sloupci Materiál přepíná OK ↔ NOK; klávesa <kbd>O</kbd> nastaví OK, <kbd>N</kbd> nastaví NOK, <kbd>Delete</kbd> vymaže – vždy pro celý výběr.
+  Řádek s NOK je červený, s OK zelený. Uplynulé termíny odeslání jsou zvýrazněny tučně červeně. Ukazatele nad tabulkou fungují jako rychlý filtr.</p>
+  <h3>Rozpis směn (Plán výroby)</h3>
+  <p>Tlačítko <b>Rozpis směn…</b> – pro každé pracoviště zvlášť:</p>
+  <table>
+    <tr><td>1. Směny</td><td>začátek, konec a přestávky. Konec dřív než začátek (22:00–6:00) = noční směna, končí další den.</td></tr>
+    <tr><td>2. Běžný týden</td><td>které směny jedou v který den; opakuje se každý týden. Noční patří ke dni, kdy začíná.</td></tr>
+    <tr><td>3. Kalendář</td><td>výjimky pro konkrétní dny – klik na směnu ji zapne/vypne (přesčas v sobotu, dovolená, odstávka). Svátky se vyznačí automaticky.</td></tr>
+    <tr><td>4. Hromadně</td><td>pro celé období nastavit vybrané směny, volno, nebo vrátit na běžný týden; převzetí rozpisu z jiného pracoviště.</td></tr>
+  </table>
+  <p>Když je rozpis zapnutý, zakázky se rozplánují v pořadí řádků do konkrétních směn od <b>aktuálního data a času</b>: sloupec <b>Směna</b> ukazuje
+  např. „St 12.11. R → Čt 13.11. O“ a <b>Konec (odhad)</b> čas dokončení. „Plánovat od“ určuje, zda se počítá jen se zbytkem aktuální směny,
+  s celou aktuální směnou, nebo až od příští. Přepočet probíhá každou minutu. Vypnutý rozpis = výpočet s pevnou délkou směny.</p>
+  <h3>Filtry (pole pod názvem sloupce)</h3>
+  <table>
+    <tr><td><code>abc</code> / <code>abc;def</code></td><td>obsahuje text / kterýkoli z výrazů</td></tr>
+    <tr><td><code>!abc</code> / <code>=abc</code></td><td>neobsahuje / přesná shoda</td></tr>
+    <tr><td><code>=</code> / <code>!=</code></td><td>prázdné / neprázdné buňky</td></tr>
+    <tr><td><code>&gt;100</code>, <code>&lt;=5</code></td><td>porovnání čísel</td></tr>
+    <tr><td><code>12.11.</code> ve sloupci Směna</td><td>zakázky naplánované na daný den</td></tr>
+  </table>
+  <h3>Ukládání dat</h3>
+  <p>Každá změna se okamžitě uloží do úložiště prohlížeče v tomto počítači. Nepoužívejte anonymní režim a nemažte data prohlížeče.
+  <b>Pravidelně si stahujte zálohu</b> (tlačítko nahoře) – obsahuje i rozpisy směn a zapamatovaná přiřazení sloupců.</p>
+  </div>`, [{ label: 'Zavřít', primary: true }]);
+}
+
+/* =====================================================================
+   UDÁLOSTI
+   ===================================================================== */
+const actions = {
+  addRow, insRow: insertRow, delRows: deleteRows, up: () => moveRows(-1), down: () => moveRows(1),
+  undo, redo, import: () => openImport(), copyAll, clearFilters, applySort, clearSheet, cal: openCalendar,
+};
+$('#toolbar').addEventListener('mousedown', e => { if (e.target.closest('button')) e.preventDefault(); });
+$('#toolbar').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
+  commitIfEditing();
+  actions[b.dataset.act]();
+  if ($('#modal').hidden && b.dataset.act !== 'clearSheet') focusSink();
+});
+
+$('#sheetbar').addEventListener('click', e => {
+  const del = e.target.closest('[data-del]'); if (del) { e.stopPropagation(); deleteSheet(del.dataset.del); return; }
+  if (e.target.closest('#addSheet')) { addSheet(); return; }
+  const tab = e.target.closest('.stab'); if (tab) switchSheet(tab.dataset.sid);
+});
+$('#sheetbar').addEventListener('dblclick', e => {
+  const tab = e.target.closest('.stab'); if (tab && !e.target.closest('[data-del]')) startRename(tab.dataset.sid);
+});
+
+$('#modnav').addEventListener('click', e => { const b = e.target.closest('[data-mod]'); if (b) switchModule(b.dataset.mod); });
+$('#panel').addEventListener('click', e => {
+  if (e.target.closest('[data-opencal]')) { commitIfEditing(); openCalendar(); return; }
+  const ch = e.target.closest('.chip'); if (!ch || ui.module !== 'm1') return;
+  const sh = sheet(), f = ch.dataset.f;
+  if (!f || sh.filters.mat === f) delete sh.filters.mat; else sh.filters.mat = f;
+  save(); recomputeView(); renderGrid(); updatePanel(); updateStatus();
+});
+$('#panel').addEventListener('input', e => {
+  if (e.target.id !== 'shiftLen') return;
+  const v = parseNum(e.target.value);
+  if (!(v > 0)) return;
+  sheet().shift = v; save(); ctx = buildCtx(); refreshGlobalCalc(); updatePanel();
+});
+$('#panel').addEventListener('change', e => {
+  if (e.target.id !== 'planFrom') return;
+  sheet().cal.planFrom = e.target.value; save(); ctx = buildCtx(); refreshGlobalCalc(); updatePanel();
+});
+
+/* --- mřížka: myš --- */
+grid.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  const t = e.target;
+  const rz = t.closest('.rz');
+  if (rz) { e.preventDefault(); e.stopPropagation(); commitIfEditing(); startResize(+rz.dataset.rz, e.clientX); return; }
+  if (t.closest('.fin') || t.closest('.cell-input')) return;
+  const sb = t.closest('.sortbtn');
+  if (sb) { e.preventDefault(); commitIfEditing(); toggleSort(+sb.dataset.sc); return; }
+  const hl = t.closest('.hl');
+  if (hl) { e.preventDefault(); commitIfEditing(); selectCol(+hl.dataset.cc, e.shiftKey); drag = { mode: 'col' }; focusSink(); return; }
+  if (t.closest('.corner')) { e.preventDefault(); commitIfEditing(); selectAll(); focusSink(); return; }
+  const rn = t.closest('th.rn');
+  if (rn) { e.preventDefault(); commitIfEditing(); selectRow(+rn.parentNode.dataset.r, e.shiftKey); drag = { mode: 'row' }; focusSink(); return; }
+  const td = t.closest('td'); if (!td) return;
+  e.preventDefault();
+  const r = +td.parentNode.dataset.r, c = +td.dataset.c;
+  if (editing) { if (editing.r === r && editing.c === c) return; commitEdit(); }
+  const wasAct = sel && sel.ar === r && sel.ac === c && sel.er === r && sel.ec === c;
+  if (e.shiftKey && sel) { sel.er = r; sel.ec = c; paintSel(); updateStatus(); }
+  else setSel(r, c);
+  focusSink();
+  if (t.closest('.badge') && !e.shiftKey) { toggleStatusAt(r, c); return; }
+  drag = { mode: 'cell' };
+  pendingEdit = wasAct && !e.shiftKey ? { r, c } : null;
+});
+grid.addEventListener('mouseover', e => {
+  if (!drag || !sel) return;
+  const td = e.target.closest('td'), rn = e.target.closest('th.rn'), hl = e.target.closest('.hl');
+  if (drag.mode === 'cell' && td) {
+    const r = +td.parentNode.dataset.r, c = +td.dataset.c;
+    if (sel.er !== r || sel.ec !== c) { sel.er = r; sel.ec = c; pendingEdit = null; paintSel(); updateStatus(); }
+  } else if (drag.mode === 'row' && (td || rn)) {
+    const r = +(td || rn).parentNode.dataset.r;
+    if (sel.er !== r) { sel.er = r; paintSel(); updateStatus(); }
+  } else if (drag.mode === 'col' && hl) {
+    const c = +hl.dataset.cc;
+    if (sel.ec !== c) { sel.ec = c; paintSel(); updateStatus(); }
+  }
+});
+document.addEventListener('mouseup', e => {
+  if (pendingEdit) {
+    const td = e.target.closest && e.target.closest('td');
+    if (td && grid.contains(td) && +td.parentNode.dataset.r === pendingEdit.r && +td.dataset.c === pendingEdit.c) startEdit(pendingEdit.r, pendingEdit.c);
+  }
+  pendingEdit = null; drag = null;
+});
+grid.addEventListener('contextmenu', e => {
+  const t = e.target;
+  if (t.closest('.fin') || t.closest('.cell-input')) return;   // u polí s textem nechat menu prohlížeče
+  const th = t.closest('thead th');
+  if (th) {
+    e.preventDefault(); commitIfEditing();
+    const hl = th.querySelector('.hl');
+    if (hl) headerMenu(e.clientX, e.clientY, +hl.dataset.cc);
+    else openCtx(e.clientX, e.clientY, [
+      { label: 'Vybrat vše', kbd: 'Ctrl+A', action: () => { selectAll(); focusSink(); } },
+      { label: 'Přizpůsobit šířku všech sloupců', action: () => cols().forEach((_, k) => autoFitCol(k)) },
+      { label: 'Obnovit výchozí šířky sloupců', disabled: !ui.widths[ui.module], action: resetWidths }]);
+    return;
+  }
+  const td = t.closest('td'), rn = t.closest('th.rn');
+  if (!td && !rn) return;
+  e.preventDefault(); commitIfEditing();
+  const r = +(td || rn).parentNode.dataset.r;
+  if (rn) {
+    const R = sel ? range() : null;
+    if (!(R && r >= R.r1 && r <= R.r2 && R.c1 === 0 && R.c2 === cols().length - 1)) selectRow(r, false);
+  } else if (!inSel(r, +td.dataset.c)) setSel(r, +td.dataset.c);
+  focusSink();
+  rowMenu(e.clientX, e.clientY);
+});
+gridwrap.addEventListener('scroll', closeCtx);
+window.addEventListener('blur', closeCtx);
+window.addEventListener('resize', () => { closeCtx(); });
+grid.addEventListener('dblclick', e => {
+  const rz = e.target.closest('.rz');
+  if (rz) { e.preventDefault(); autoFitCol(+rz.dataset.rz); return; }
+  const td = e.target.closest('td');
+  if (!td || e.target.closest('.cell-input')) return;
+  if (cols()[+td.dataset.c].type === 'status') return;
+  if (!editing) startEdit(+td.parentNode.dataset.r, +td.dataset.c);
+});
+
+/* --- filtry --- */
+let filterT;
+grid.addEventListener('input', e => {
+  const f = e.target.closest('.fin'); if (!f) return;
+  f.classList.toggle('on', !!f.value);
+  clearTimeout(filterT);
+  const i = +f.dataset.fc, v = f.value;
+  filterT = setTimeout(() => setFilter(i, v), 120);
+});
+grid.addEventListener('keydown', e => {
+  const f = e.target.closest('.fin'); if (!f) return;
+  if (e.key === 'Enter' || e.key === 'ArrowDown') { e.preventDefault(); clearTimeout(filterT); setFilter(+f.dataset.fc, f.value); setSel(0, +f.dataset.fc); focusSink(); }
+  else if (e.key === 'Escape') { f.value = ''; f.classList.remove('on'); setFilter(+f.dataset.fc, ''); }
+});
+
+/* --- klávesnice --- */
+sink.addEventListener('keydown', e => {
+  const k = e.key, lk = k.length === 1 ? k.toLowerCase() : k, ctrl = e.ctrlKey || e.metaKey;
+  if (!sel) setSel(0, 0);
+  if (ctrl) {
+    if (lk === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+    if (lk === 'y') { e.preventDefault(); redo(); return; }
+    if (lk === 'a') { e.preventDefault(); selectAll(); return; }
+    if (k === '-' || k === 'Subtract') { e.preventDefault(); deleteRows(); return; }
+    if ((k === '+' || k === 'Add') && e.shiftKey) { e.preventDefault(); insertRow(); return; }
+    if (k.startsWith('Arrow')) {
+      e.preventDefault();
+      moveSel(k === 'ArrowUp' ? -1 : k === 'ArrowDown' ? 1 : 0, k === 'ArrowLeft' ? -1 : k === 'ArrowRight' ? 1 : 0, e.shiftKey, true);
+      return;
+    }
+    if (k === 'Home') { e.preventDefault(); setSel(0, 0); scrollCell(0, 0); return; }
+    if (k === 'End') { e.preventDefault(); const r = lastReal(), c = cols().length - 1; setSel(r, c); scrollCell(r, c); return; }
+    return;
+  }
+  if (e.altKey && (k === 'ArrowUp' || k === 'ArrowDown')) { e.preventDefault(); moveRows(k === 'ArrowUp' ? -1 : 1); return; }
+  switch (k) {
+    case 'ArrowUp': e.preventDefault(); moveSel(-1, 0, e.shiftKey); return;
+    case 'ArrowDown': e.preventDefault(); moveSel(1, 0, e.shiftKey); return;
+    case 'ArrowLeft': e.preventDefault(); moveSel(0, -1, e.shiftKey); return;
+    case 'ArrowRight': e.preventDefault(); moveSel(0, 1, e.shiftKey); return;
+    case 'PageDown': e.preventDefault(); moveSel(20, 0, e.shiftKey); return;
+    case 'PageUp': e.preventDefault(); moveSel(-20, 0, e.shiftKey); return;
+    case 'Home': e.preventDefault(); moveSel(0, -99, e.shiftKey); return;
+    case 'End': e.preventDefault(); moveSel(0, 99, e.shiftKey); return;
+    case 'Tab': e.preventDefault(); moveSel(0, e.shiftKey ? -1 : 1); return;
+    case 'Enter': e.preventDefault(); if (e.shiftKey) moveSel(-1, 0); else startEdit(sel.ar, sel.ac); return;
+    case 'F2': e.preventDefault(); startEdit(sel.ar, sel.ac); return;
+    case 'Delete': case 'Backspace': e.preventDefault(); clearSelection(); return;
+    case 'Escape': e.preventDefault(); setSel(sel.ar, sel.ac); return;
+  }
+  if (k.length === 1 && !e.altKey) {
+    e.preventDefault();
+    const ct = cols()[sel.ac].type;
+    if (ct === 'status') {
+      if (lk === 'o' || lk === 'a' || lk === '1') setStatusSel('OK');
+      else if (lk === 'n' || lk === '0') setStatusSel('NOK');
+      else if (k === ' ') toggleStatusAt(sel.ar, sel.ac);
+      return;
+    }
+    if (ct === 'calc') { toast('Tento sloupec se počítá automaticky.'); return; }
+    startEdit(sel.ar, sel.ac, k);
+  }
+});
+sink.addEventListener('copy', e => {
+  if (!sel) return;
+  e.preventDefault(); e.clipboardData.setData('text/plain', selectionTSV());
+  const R = range(); toast(`Zkopírováno ${R.r2 - R.r1 + 1} × ${R.c2 - R.c1 + 1}.`);
+});
+sink.addEventListener('cut', e => {
+  if (!sel) return;
+  e.preventDefault(); e.clipboardData.setData('text/plain', selectionTSV()); clearSelection();
+});
+sink.addEventListener('paste', e => {
+  e.preventDefault();
+  pasteGrid(parseTSV(e.clipboardData ? e.clipboardData.getData('text/plain') : ''));
+});
+
+/* --- globální --- */
+document.addEventListener('keydown', e => {
+  if (e.key === 'F1') { e.preventDefault(); openHelp(); return; }
+  if (e.key === 'Escape' && $('#ctxm')) { e.preventDefault(); closeCtx(); return; }
+  if (e.key === 'Escape' && !$('#modal').hidden) closeModal();
+});
+$('#modal').addEventListener('mousedown', e => { if (e.target.id === 'modal' && modalKind !== 'import' && modalKind !== 'cal') closeModal(); });
+$('#btnHelp').onclick = openHelp;
+$('#btnExport').onclick = exportBackup;
+$('#btnImport').onclick = () => { $('#fileImport').value = ''; $('#fileImport').click(); };
+$('#fileImport').onchange = e => { const f = e.target.files[0]; if (f) importBackup(f); };
+gridwrap.addEventListener('mousedown', e => { if (e.target === gridwrap) { commitIfEditing(); focusSink(); } });
+
+// přetažení souboru kamkoli do okna = import
+window.addEventListener('dragover', e => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) e.preventDefault(); });
+window.addEventListener('drop', e => {
+  const f = e.dataTransfer && e.dataTransfer.files[0];
+  if (!f) return;
+  e.preventDefault();
+  if (/\.json$/i.test(f.name)) { importBackup(f); return; }
+  if (modalKind === 'import') loadImportFile(f); else { closeModal(); openImport(f); }
+});
+
+window.addEventListener('beforeunload', () => commitIfEditing());
+document.addEventListener('visibilitychange', () => { if (document.hidden) commitIfEditing(); else tick(); });
+window.addEventListener('storage', e => {
+  const k = e.key === KEYS.m1 ? 'm1' : e.key === KEYS.m2 ? 'm2' : '';
+  if (!k) return;
+  const d = normalizeData(k, safeParse(e.newValue));
+  if (!d) return;
+  store[k] = d;
+  if (k !== ui.module) return;
+  data = d; editing = null;
+  if ($('#modal').hidden) { renderAll(); toast('Data byla změněna v jiném okně – zobrazena aktuální verze.'); }
+});
+
+// hodiny + přepočet plánu podle aktuálního času
+function tick() {
+  const d = new Date();
+  $('#clock').textContent = `${DOW[d.getDay()]} ${d.toLocaleDateString('cs-CZ')} ${d.getHours()}:${pad2(d.getMinutes())}`;
+  if (calOn(sheet()) && !editing) { ctx = buildCtx(); refreshGlobalCalc(); updatePanel(); }
+}
+setInterval(tick, 60000);
+
+/* =====================================================================
+   START
+   ===================================================================== */
+renderAll();
+setSel(0, 0);
+focusSink();
+tick();
+window.__planovac = { get data() { return data; }, store, switchModule, parseNum, parseTextAuto, planWithCalendar, readXlsx, holidayName, buildCtx: () => buildCtx() };
+})();
+</script>
+</body>
+</html>
