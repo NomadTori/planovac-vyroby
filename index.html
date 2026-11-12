@@ -439,6 +439,20 @@ select.fin{padding:0 1px}
 .dchip{font-size:11.5px;background:#eef2f6;border-radius:3px;padding:1px 7px;color:var(--text)}
 .dchip.now{background:#e3edff}
 .dchip.warn{background:#fde4e1;color:var(--bad);font-weight:700}
+.rz{width:9px;right:-1px}
+.rz::after{content:"";position:absolute;top:4px;bottom:4px;left:4px;width:1px;background:#c3ccd7}
+.rz:hover::after,body.resizing .rz::after{background:var(--accent);width:3px;left:3px}
+.hicons{margin-right:7px}
+/* === kompaktní záhlaví: méně místa kolem symbolu řazení === */
+.grid thead th{overflow:visible;padding:4px 3px 4px 5px}
+.hwrap{overflow:hidden;gap:1px}
+.hicons{margin:0!important;gap:0}
+.sortbtn{border:0!important;padding:0 1px!important;font-size:9px!important;line-height:14px!important;color:#b3bdc9;min-width:9px;text-align:center;border-radius:2px}
+.sortbtn:hover{background:#dde4ec!important;color:var(--text)}
+.sortbtn.on{color:#fff;background:var(--accent)!important;padding:0 2px!important}
+.rz{width:8px!important;right:-4px!important;z-index:6}
+.rz::after{left:4px!important}
+.rz:hover::after,body.resizing .rz::after{left:3px!important}
 </style>
 </head>
 <body>
@@ -1280,7 +1294,8 @@ function renderGrid() {
   closeFilterPop();
   const sh = sheet(), cs = cols();
   const wSum = cs.reduce((a, c) => a + c.w, 0), W = ui.widths[ui.module], px = W && cs.some(c => W[c.key]);
-  const colW = c => px ? (W[c.key] || defaultPx(c)) + 'px' : (c.w / wSum * 100).toFixed(3) + '%';
+  const pSum = px ? cs.reduce((a, c) => a + (W[c.key] || defaultPx(c)), 0) : 1;
+  const colW = c => px ? ((W[c.key] || defaultPx(c)) / pSum * 100).toFixed(3) + '%' : (c.w / wSum * 100).toFixed(3) + '%';
   let h = `<colgroup><col style="width:${RN_W}px">${cs.map(c => `<col style="width:${colW(c)}">`).join('')}</colgroup><thead><tr><th class="corner" title="Vybrat vše (Ctrl+A) · pravé tlačítko = šířky sloupců"></th>`;
   cs.forEach((c, i) => {
     const dir = sh.sort && sh.sort.key === c.key ? sh.sort.dir : '';
@@ -1301,11 +1316,11 @@ function renderGrid() {
     h += `<th class="${isNumericCol(c) ? 'th-num' : ''}${c.key === 'hotovo' && ui.module === 'm2' ? ' th-hk' : ''}"><div class="hwrap"><span class="hl" data-cc="${i}" title="${esc(title)}">${esc(c.label)}</span>` +
       `<span class="hicons">` +
       (c.sortable === false ? '' : `<button class="sortbtn${dir ? ' on' : ''}" data-sc="${i}" title="Řadit (vzestupně → sestupně → bez řazení)">${arrow}</button>`) +
-      `</span></div><template class="ftpl">${f}</template><span class="rz" data-rz="${i}" title="Táhněte = šířka sloupce · dvojklik = podle obsahu"></span></th>`;
+      `</span></div><template class="ftpl">${f}</template>${i < cs.length - 1 ? `<span class="rz" data-rz="${i}" title="Táhněte = šířka sloupce (soused vpravo se přizpůsobí) · dvojklik = podle obsahu"></span>` : ''}</th>`;
   });
   h += '</tr></thead><tbody></tbody>';
   grid.innerHTML = h;
-  grid.style.width = px ? (RN_W + cs.reduce((a, c) => a + (W[c.key] || defaultPx(c)), 0)) + 'px' : '';
+  grid.style.width = '';   // tabulka vždy vyplní celou šířku
   renderBody();
 }
 function cellView(col, row) {
@@ -1763,40 +1778,55 @@ function ensurePxWidths() {
   cs.forEach((c, k) => { if (!W[c.key]) W[c.key] = Math.round(ths[k + 1].getBoundingClientRect().width); });
   return W;
 }
+/* Šířky sloupců: uložené jako poměry – tabulka vždy vyplní celou šířku okna (bez prázdného místa vpravo).
+   Tažením za okraj se mění poměr mezi sloupcem a jeho sousedem vpravo. */
 function applyWidths() {
   const cs = cols(), W = ui.widths[ui.module] || {}, colEls = grid.querySelectorAll('colgroup col');
-  let tot = RN_W;
-  cs.forEach((c, k) => { const w = W[c.key] || defaultPx(c); colEls[k + 1].style.width = w + 'px'; tot += w; });
-  grid.style.width = tot + 'px';
+  const sum = cs.reduce((a, c) => a + (W[c.key] || defaultPx(c)), 0) || 1;
+  cs.forEach((c, k) => { colEls[k + 1].style.width = ((W[c.key] || defaultPx(c)) / sum * 100).toFixed(3) + '%'; });
+  grid.style.width = '';
 }
-function startResize(i, x0) {
+function measureWidths() {
   const cs = cols(), ths = grid.tHead.rows[0].cells;
   const W = ui.widths[ui.module] || (ui.widths[ui.module] = {});
-  cs.forEach((c, k) => { W[c.key] = Math.round(ths[k + 1].getBoundingClientRect().width); });
-  const w0 = W[cs[i].key];
+  cs.forEach((c, k) => { W[c.key] = ths[k + 1].getBoundingClientRect().width; });
+  return W;
+}
+function startResize(i, x0) {
+  const cs = cols();
+  if (i >= cs.length - 1) return;                 // poslední sloupec nemá souseda
+  const W = measureWidths(), a = cs[i].key, b = cs[i + 1].key, wa = W[a], wb = W[b], MIN = 34;
   applyWidths();
   document.body.classList.add('resizing');
-  const move = ev => { W[cs[i].key] = Math.max(40, Math.round(w0 + ev.clientX - x0)); applyWidths(); };
+  const move = ev => {
+    const dx = clamp(ev.clientX - x0, MIN - wa, wb - MIN);
+    W[a] = wa + dx; W[b] = wb - dx; applyWidths();
+  };
   const up = () => {
     document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
-    document.body.classList.remove('resizing'); saveUI();
+    document.body.classList.remove('resizing');
+    cs.forEach(c => { W[c.key] = Math.round(W[c.key] * 10) / 10; });
+    saveUI();
   };
   document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
 }
 function autoFitCol(i) {
-  const c = cols()[i]; if (!c) return;
-  const W = ensurePxWidths();
+  const cs = cols(), c = cs[i]; if (!c) return;
+  const W = measureWidths();
   const g = (autoFitCol.cv || (autoFitCol.cv = document.createElement('canvas'))).getContext('2d');
   const th = grid.tHead.rows[0].cells[i + 1];
   g.font = getComputedStyle(th).font;
-  let max = g.measureText(c.label).width + 44;
+  let max = g.measureText(c.label).width + 36;
   const sample = tds.length ? tds[0][i] : null;
   if (sample) g.font = getComputedStyle(sample).font;
   for (let r = 0; r < Math.min(viewIds.length, 5000); r++) {
     const td = tds[r] && tds[r][i]; if (!td) continue;
-    max = Math.max(max, (c.type === 'status' ? 60 : g.measureText(td.textContent).width) + 18);
+    max = Math.max(max, (c.type === 'state' ? 96 : c.type === 'prio' ? 34 : g.measureText(td.textContent).width) + 18);
   }
-  W[c.key] = clamp(Math.ceil(max), 50, 800);
+  const total = cs.reduce((s2, x) => s2 + W[x.key], 0);
+  const fit = clamp(Math.ceil(max), 34, total - 34 * (cs.length - 1));
+  const others = total - W[c.key], scale = others > 0 ? (total - fit) / others : 1;
+  cs.forEach(x => { W[x.key] = x.key === c.key ? fit : W[x.key] * scale; });   // ostatní se poměrně přizpůsobí
   applyWidths(); saveUI();
 }
 function resetWidths() {
